@@ -138,19 +138,151 @@ The generator guarantees a **solvable critical path**: Entry → (Key) → (Lock
 
 ### Player / Vessel
 
-The player inhabits a **vessel** — a body type with base stats, a unique signature ability, and (in some cases) a passive identity trait.
+The player inhabits a **vessel** — a body type with a starting stat distribution, starting passive(s), a signature ability, and (for one vessel) a unique health-economy mechanic.
 
-| Vessel | HP | Move Speed | Signature Ability |
-|--------|----|----|------------------|
-| Clone | 100 | Medium | Adrenaline Rush — speed burst at low HP |
-| Android | 80 | Medium | Overclock — brief time-slow on activation |
-| Synthetic | 60 | Fast | Phase Shift — brief intangibility |
+#### Design philosophy: Engagement Contract
 
-Concrete numbers (move speed in px/sec, HP, signature cooldown/duration/magnitude, edge cases) are **workshop output** — Workshop W1 in [WORKSHOPS.md](WORKSHOPS.md). Additional vessels beyond these three are also W1 output.
+Each vessel is built around its **engagement contract** — the question *"what does this body ask me to do differently from room to room?"* Stats support the fantasy; the signature completes the loop; HP/speed differences are tuning knobs, not identity.
 
-All vessels share the same action set (attack, dodge, tool, signature). Stats and signature define the feel.
+Every vessel must pass these tests before shipping:
+1. **Selection sentence:** *"This is the one that ___."*
+2. **Room behavior:** what does the player do differently in a normal combat room?
+3. **Boss behavior:** what does the player do differently in a boss fight?
+4. **Panic behavior:** what happens when the plan breaks?
+5. **Signature dependency:** would the vessel still feel distinct without its signature? If yes, good passive/stat identity. If no, the signature must be extremely reliable and central. If neither, redesign it.
 
-**Implementation note:** Clone's Adrenaline Rush ships in M1 with the player movement system. A vessel without its signature is incomplete; signatures are not deferrable to "later polish".
+#### Isaac-style portability
+
+Vessel distinctions are mostly *starting* distinctions. Categorize each piece of identity as:
+
+- **Stat distribution** — different starting roll on a shared stat sheet. Trivially portable; any vessel can drift toward another's profile mid-run via pickups.
+- **Starting passive / item** — a real entry in the item pool. The vessel starts with it; other vessels can find it (rarely) in hidden rooms, secret rooms, or rare drops.
+- **Vessel-unique mechanic** — engine-level change to how the vessel relates to a system. Cannot be picked up. Used **sparingly** — these carry real engineering cost.
+
+The current roster has **exactly one** vessel-unique mechanic: Aberrant's Echo Conversion. Everything else is data.
+
+#### Shared action set
+
+All vessels share the same actions: **Attack**, **Dodge**, **Tool**, **Signature**. The dodge action itself is a **data-driven profile** (`DodgeActionDefinition`: movement vector, duration, i-frames, contact damage on/off, hitbox shape). Default profile is "Roll"; Exo's default is "Shoulder-Charge"; both profiles (and any future ones) are pool-portable as passives.
+
+#### Stat sheet (all values starting; everything modifiable by pickups)
+
+| Stat | Clone baseline | Unit | Notes |
+|------|----------------|------|-------|
+| Max HP | 5 | small icons | Sector 1 enemies do 1–2 dmg/hit; HP is the most common per-run upgrade |
+| Move speed | 120 | px/sec | |
+| Attack power | 1 | dmg/hit | |
+| Attack rate | 1.5 | swings/sec | |
+| Reach | 32 | px | Melee hitbox extent |
+| Dodge recharge | 1.5 | sec | |
+| Dodge distance | 96 | px | |
+| Dodge i-frames | 0.20 | sec (12 frames @ 60fps) | |
+| Luck | 0 | abstract | Affects crit chance, drop quality |
+| Armor | 0 | flat | Damage layer that absorbs N points then breaks; pickup-only regen |
+
+#### HP system: Alundra-style icons
+
+- **Small icon** = 1 HP.
+- **Big icon** = 10 HP. Auto-promotes when total ≥ 10.
+- No half/quarter units. Damage is integer.
+- Per-vessel symbology (the vessel-select screen reads visually before any text):
+
+| Vessel | Icon |
+|--------|------|
+| Clone | Blood drop |
+| Android | Battery cell |
+| Synthetic | Hexagonal integrity shard |
+| Exo | Armor plate |
+| Operator | Signal bar |
+| Aberrant | Eye glyph |
+
+#### Roster
+
+Six vessels. Clone is the starting "fair default" — normal HP, normal speed, normal dodge, normal attack, signature that activates under pressure. Other vessels bend the base rules.
+
+| Vessel | Selection sentence | Engagement contract |
+|--------|--------------------|---------------------|
+| **Clone** | *The one that gets stronger when things go wrong.* | Take risks, survive scrappy fights, recover momentum at low HP. |
+| **Android** | *The one that wins by reading patterns.* | Wait, time an opening, overclock, punish precisely. |
+| **Synthetic** | *The one that survives by never being where the hit lands.* | Constant movement, phase through danger, burst in and out. |
+| **Exo** | *The one that can take the hit but cannot easily escape.* | Slow, armored, no dodge roll — wins through commitment and positioning. |
+| **Operator** | *The one that fights through tools instead of raw damage.* | Lower direct combat strength, two tool slots, tool synergies, console manipulation. |
+| **Aberrant** | *The one that turns danger into power.* | High-risk: damage permanently converts max HP into Echo charge usable as offense. |
+
+#### Per-vessel starting stats (deltas from Clone baseline)
+
+| Vessel | HP | Move | Atk | Rate | Reach | Dodge Recharge / Dist / iFrames | Luck | Armor |
+|--------|----|------|-----|------|-------|----------------------------------|------|-------|
+| Clone | 5 | 120 | 1 | 1.5 | 32 | 1.5 / 96 / 0.20 (Roll) | 0 | 0 |
+| Android | 4 | 110 | 1 | 1.2 | 40 | 1.5 / 96 / 0.20 (Roll) | 0 | 0 |
+| Synthetic | 3 | 145 | 1 | 1.7 | 28 | 1.0 / 120 / 0.30 (Roll) | 0 | 0 |
+| Exo | 7 | 90 | 1 | 1.0 | 36 | 2.2 / 60 / 0.14 (Shoulder-Charge) | 0 | 4 |
+| Operator | 4 | 120 | 1 | 1.5 | 32 | 1.5 / 96 / 0.20 (Roll) | 1 | 0 |
+| Aberrant | 6 | 125 | 1 | 1.5 | 32 | 1.5 / 96 / 0.20 (Roll) | 0 | 0 |
+
+All numbers are **playtest-tunable**. Code ships configurable values (`.tres` data files or inspector-exposed consts), not hardcoded magic numbers.
+
+#### Per-vessel signatures
+
+**Clone — Adrenaline Rush** (passive trigger)
+On the hit that drops HP to ≤40% max, gain **+50% move** and **+30% attack rate** for **5 sec**. Cooldown **30 sec** from effect end. Healing back above threshold doesn't end the buff. Won't trigger while staggered; queues until stagger ends.
+
+**Android — Overclock** (active)
+World time scales to **0.30×** for **2.0 sec**. Player and player-fired projectiles unaffected. UI not affected. Bullets in flight respect the slow. Cooldown **25 sec**. Cannot activate while staggered.
+
+**Synthetic — Phase Shift** (active)
+**1.5 sec** intangibility: ignores all damage and passes through enemies / projectiles / hazards (not walls). **+30% move** during. Cannot attack during phase. Refreshes dodge cooldown on activation. Cooldown **18 sec**.
+
+**Exo — Bulwark** (active)
+**4 sec** stance: incoming damage **halved** (after armor) and **+6 temp armor** that decays to 0 over the duration. Move speed **−50%** during. Breaks current stagger on activation. Cooldown **35 sec**.
+
+**Operator — Cascade** (active)
+Resets both tool cooldowns instantly. **Next 2 tool activations** get **+50%** magnitude or duration (per-tool definition). Doesn't refund consumable charges. Empty tool slot = no effect on that slot. Cooldown **40 sec**.
+
+**Aberrant — Echo Surge** (active, gated by Echo charge)
+Consumes Echo charge; effect scales with charge spent at activation:
+- **1–2 Echo:** next 3 attacks gain +1 damage and small AoE
+- **3–5 Echo:** above + 1 sec invulnerability on activation
+- **6+ Echo:** above + screen-clearing pulse (Sector-1 enemies die; elites take 5; bosses take 3)
+
+No timed cooldown; gated entirely by Echo availability. Numbers all playtest-tunable.
+
+#### Vessel-unique mechanic: Echo Conversion (Aberrant)
+
+Every direct enemy hit taken (damage > 0; **not** DOT, not environmental ticks) converts **1 max HP → 1 Echo charge** permanently for the run. Healing restores current HP only; max HP loss is recovered only by specific rare items (one or two in the whole pool, names TBD via W10). Run ends when max HP reaches 0 even at full current HP.
+
+This is the only engine-level vessel mechanic in the roster.
+
+#### Starting passives (all also exist as rare pool items)
+
+The signatures themselves are starting passives for their vessels and exist as rare items the *other* vessels can find. Plus:
+
+| Item | Effect | Starts on |
+|------|--------|-----------|
+| Adrenaline Rush | Clone's signature as a passive trigger | Clone |
+| Overclock | Android's signature as a rare active item | Android |
+| Phase Shift | Synthetic's signature as a rare active item | Synthetic |
+| Plated | +Armor stat, swaps dodge → Shoulder-Charge | Exo |
+| Shoulder-Charge | Replaces dodge profile with Shoulder-Charge | Exo (default); also pool-rare |
+| Schoolbag | Adds a second tool slot | Operator |
+| Console Hack | Can hack consoles (unlock some doors without keys; reveal extra lore from terminals) | Operator |
+
+These IDs become entries in `Assets/Data/Items/` and `Assets/Data/Tools/` when the content authoring pipeline lands.
+
+#### Unlock gating (initial)
+
+- **Clone** — starting vessel, always available.
+- **Android, Synthetic** — meta currency, low cost. One unlock available after the first sector clear.
+- **Exo, Operator** — meta currency, mid cost.
+- **Aberrant** — gated behind a narrative flag, not just currency. Reaching it should feel like discovering something off-script. Exact flag → W10.
+
+Hard-mode rules (à la Isaac) — when "easy" unlocks "hard", and what hard mode changes — are **W9** territory; W1 specs target the easy-mode baseline.
+
+#### Implementation notes
+
+- Clone's Adrenaline Rush ships in **M1** with the player movement system. A vessel without its signature is incomplete; signatures are not deferrable to "later polish".
+- Vessel definitions live in `Assets/Data/Vessels/*.tres`, loaded by `Core/Entities/PlayerVessel.cs`.
+- Stat values are starting values — runtime stats live on the player entity and are mutated by passives, items, and tools per the `DamageCalculator` modifier pipeline.
 
 ### Combat — Real-Time Action
 
@@ -158,15 +290,37 @@ Spatial, player-skill-driven. Think Link's Awakening crossed with Hades.
 
 **Player actions:**
 - **Attack** — melee swing or equipped ranged; hitbox active for a few frames
-- **Dodge roll** — directional; i-frames; short cooldown
+- **Dodge** — directional; data-driven profile (`DodgeActionDefinition`: movement vector, duration, i-frames, contact damage on/off, hitbox shape). Default is a roll; Exo's default is a shoulder-charge; profiles are pool-portable as rare passives
 - **Active tool** — equipped tool slot (grapple, EMP, scanner, turret); cooldown or charges
 - **Signature ability** — vessel-specific; rechargeable
+
+**Melee combat model:**
+- Default attack input is a **3-hit combo** (light/light/heavy). Combo length is per-weapon and modifiable by pickups (`Refrain` adds +1 step, capped at +2 over weapon base).
+- Each combo step has a **6-frame cancel window** at the start of recovery — pressing attack inside it chains; outside it, combo resets.
+- **Dodge cancels any frame ≥ end-of-windup.** Attacks cannot cancel into other attacks (only the chain advances).
+- **Hit-stop applies to both attacker and target**, target frozen ~2× longer (sells weight on attacker, impact on target).
+- **Vessels always carry a weapon.** Each vessel ships with a default weapon matching its identity. Found weapons replace the held weapon; there is no "bare-hands" state.
+
+**Weapon roster (slice):**
+
+| Weapon | Vessel default | Adjective | Combo | Per-hit frames (W/A/R, 60fps) | Reach | Arc | Damage | Hit-stop (target/attacker ms) | Special |
+|---|---|---|---|---|---|---|---|---|---|
+| Sword | Clone | clean | 3 (L/L/H) | 4/3/8 → 4/3/8 → 8/4/14 | medium | 90° arc | 1/1/2 | 60/30 → 60/30 → 120/60 | — |
+| Hammer | Exo | heavy | 2 (H/H) | 10/4/18 → 14/5/22 | medium | 120° overhead | 2/3 | 140/70 → 180/90 | — |
+| Dual-blade | Synthetic | fast | 4 (L/L/L/L) | 3/2/5 ×4 | short | narrow flurry | 1×4 | 40/20 each | — |
+| Rapier | Android | precise | 3 (T/T/T) | 5/3/9 ×3 | long | thin thrust line | 1/1/3 | 50/25 → 50/25 → 100/50 | Third hit crits if all three thrusts connected; missed thrust resets crit eligibility but combo continues |
+| Claws | Aberrant | brutal | 3 (L/L/H) | 3/2/6 → 3/2/6 → 6/4/12 | short | tight 60° | 1/1/2 | 50/25 → 50/25 → 110/55 | Heavy applies Bleed (1 dmg/sec, 3s) |
+| Daggers | (found) | deft | 4 (L/L/L/H) | 3/2/5 ×3 → 6/3/10 | short | narrow | 1/1/1/2 | 40/20 ×3 → 100/50 | +1 dmg per hit when attacker is in target's rear 90° cone |
+
+**Combo-extender pickups (handed to W5 for full pool integration):**
+- `Refrain` — adds 1 combo step to the held weapon (cap +2 over base)
+- `Pirouette` — final combo hit's hitbox becomes 360°
 
 **Damage model:**
 - No regen between rooms — careful play matters
 - **Shields** — optional layer; absorbs one hit then breaks/recharges per item rules
 
-**HP recovery economy** *(default rules; refined in W2/W5)*:
+**HP recovery economy** *(default rules; refined in W5)*:
 - Vendors sell heal items (paid in credits)
 - Specific consumables (medkits) and rare passives can heal
 - Inter-sector hub partial heal *(post-slice)*
@@ -195,7 +349,32 @@ Game feel is a first-class system, not a polish pass. It ships in M3.5 (the expl
 - Sound cue on hit, dodge, death (placeholder OK)
 - Attack swing timing tables (windup/active/recovery frames per weapon)
 
-Concrete numbers (hit-stop ms, shake trauma units, i-frame counts) are **workshop output** — W2.
+**Hit-stop (ms, target / attacker)** — see weapon roster table for per-weapon values. Attacker freeze is half target freeze; both are configurable per attack in `.tres`.
+
+**Dodge profile — default Roll:**
+- Total: 12 frames (60fps) — 1 startup, 8 i-frames (frames 2–9), 3 recovery
+- Distance: ~96px
+- Recharge: 0.6s after recovery ends
+- **Post-dodge vulnerability:** the last 3 recovery frames have NO i-frames. This is the punish window — i-frame chaining cannot cover the entire dodge.
+
+**Dodge profile — Shoulder-Charge (Exo default; pool-rare for others):**
+- Total: 16 frames — 2 startup, 10 i-frames, 4 recovery
+- Distance: ~128px, contact damage 1, knockback on contact
+- Recharge: 1.0s
+
+**Screen shake — trauma values (0–1 scale; shake intensity = trauma²):**
+
+| Event | Trauma |
+|---|---|
+| Light hit landed | 0.15 |
+| Heavy hit landed | 0.30 |
+| Damage taken (1 HP) | 0.25 |
+| Heavy hit taken | 0.50 |
+| Dodge i-frames entered | 0.05 |
+| Perfect block (Active Shield) | 0.20 |
+| Death | 0.80 |
+
+All values ship configurable; numbers are starting points for playtest tuning.
 
 ### Enemy AI
 
@@ -263,8 +442,8 @@ Generation lives entirely in `Stationfall.Core`. Godot only instantiates the res
 
 | Category | Description | Example |
 |----------|-------------|---------|
-| Passive module | Permanent run-long stat/behavior modifier | "All hits apply 1s slow" / "Gain shield on room entry" |
-| Active tool | Equipped slot; cooldown or charges | Magnetic Grapple, EMP burst, Scanner, Deployable Turret |
+| Passive module | Permanent run-long stat/behavior modifier | "All hits apply 1s slow" / "Gain shield on room entry" / Poison Coat (DoT on hit) |
+| Active tool | Equipped slot; cooldown or charges | Magnetic Grapple, EMP burst, Scanner, Deployable Turret, Active Shield, Slingshot, Stun Coil |
 | Consumable | Single use | Medkit, Flashbang, Breaching Charge |
 | Vessel upgrade | Improves signature ability | Longer duration, lower cooldown |
 | Key item | Unlocks specific doors; not randomized | Sector keycard, override module |

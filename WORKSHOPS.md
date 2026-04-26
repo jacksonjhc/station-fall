@@ -25,8 +25,8 @@ A workshop need not finish in one session. "Partial completion" is fine — part
 
 | # | Topic | Status | Gates |
 |---|-------|--------|-------|
-| W1 | Vessels & Signature Abilities | Not started | M1 |
-| W2 | Combat Feel & Weapon Patterns | Not started | M1, M3.5 |
+| W1 | Vessels & Signature Abilities | Decisions promoted | M1 |
+| W2 | Combat Feel & Weapon Patterns | Decisions promoted | M1, M3.5 |
 | W3 | Enemy Roster & Archetype Detail | Not started | M3, M9 |
 | W4 | Bosses & Mid-Bosses | Not started | M8, M9 |
 | W5 | Items: Passives, Tools, Consumables | Not started | M6, M7, M9 |
@@ -43,51 +43,102 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 
 ## W1 — Vessels & Signature Abilities
 
-**Status:** Not started
+**Status:** Decisions promoted
 **Gates:** M1
 **Pre-read:** [PLANNING.md § Player / Vessel](PLANNING.md#player--vessel)
 
-**Output owed:**
-- Final vessel roster (~5–6 vessels) with names, descriptions, identity hooks
-- Per-vessel concrete stats: max HP, move speed (px/sec), attack power scalar, defense scalar
-- Per-vessel signature ability with full rules: cooldown (sec), duration (sec or instant), magnitude, edge cases (does it interrupt damage? does it work while staggered?)
-- Identity passives where relevant (e.g., does Synthetic take double damage from a specific source?)
-- Which vessel is the starting vessel (Clone is the assumed default)
-- Which vessels are unlocked from the start vs. behind meta currency
+**Output owed (all delivered — see PLANNING.md § Player / Vessel for full spec):**
+- Final vessel roster — 6 vessels with names, identity sentences, engagement contracts
+- Per-vessel concrete starting stats — HP, move speed, attack power, attack rate, reach, dodge profile, luck, armor
+- Per-vessel signature with full rules — cooldown, duration, magnitude, edge cases
+- Starting passives (each pool-portable as a rare item)
+- Vessel-unique mechanic — Aberrant's Echo Conversion (the only engine-unique mechanic in the roster)
+- Starting vessel — Clone
+- Unlock gating — Clone start; Android/Synthetic/Exo/Operator via meta currency; Aberrant via narrative flag
 
-**Prompt questions to seed the brainstorm:**
-- What's the *fantasy* of each vessel? Clone = "human under pressure"? Android = "controlled precision"? Synthetic = "fragile predator"?
-- Is there a vessel built around an unconventional axis — no melee? No dodge but extra HP? Trades signature for second tool slot?
-- Should one vessel have a *negative* identity trait that's a real downside?
-- How distinct must vessels feel — are these flavors of the same playstyle, or are they fundamentally different builds?
+**Decisions (summary — full spec lives in PLANNING.md):**
 
-**Decisions:** *(filled in during workshop)*
+1. **Design framing — Engagement Contract.** Each vessel is built around the question *"what does this body ask me to do differently from room to room?"* and must pass the 5-test gate (selection sentence / room behavior / boss behavior / panic behavior / signature dependency).
+
+2. **Isaac-style portability.** Vessel identity decomposes into stat distribution (always portable), starting passives (real pool items, rarely findable by other vessels), and vessel-unique mechanics (engine-level, used sparingly). Roster has exactly one unique mechanic — Aberrant's Echo Conversion.
+
+3. **HP scale recalibrated.** Baseline 5 HP, not 100. Sector 1 enemies do 1–2 damage; HP is the most common per-run upgrade. Late-run totals into the 50+ range are normal. Alundra-style icons: small icon = 1 HP, big icon = 10 HP, no fractions, integer damage. Per-vessel symbology (blood drops / battery cells / armor plates / signal bars / integrity shards / eye glyphs).
+
+4. **Dodge as data profile.** `DodgeActionDefinition` (movement / duration / i-frames / contact damage / hitbox) is data-driven. Default is "Roll"; Exo's default is "Shoulder-Charge"; profiles are pool-portable as rare passives.
+
+5. **Stat sheet locked.** HP, move speed, attack power, attack rate, reach, dodge recharge / distance / i-frames, luck, armor — all modifiable by pickups.
+
+6. **Roster (6 vessels):** Clone (fair default), Android (precision), Synthetic (mover), Exo (tank, no roll), Operator (tools), Aberrant (risk-as-power).
+
+7. **Numbers are playtest-tunable.** All values ship configurable (`.tres` or inspector-exposed), not hardcoded. Real balance happens once the game is playable.
+
+**Items implicitly created by W1 (need IDs in `Assets/Data/Items/` and `Assets/Data/Tools/` when the content pipeline lands):**
+
+- `Adrenaline Rush` (passive trigger; Clone start)
+- `Overclock` (active; Android start)
+- `Phase Shift` (active; Synthetic start)
+- `Plated` (passive; Exo start; +armor stat, swaps dodge → Shoulder-Charge)
+- `Shoulder-Charge` (dodge profile; Exo default; pool-rare for others)
+- `Schoolbag` (passive; Operator start; second tool slot)
+- `Console Hack` (passive; Operator start; bypass some locks, extra terminal lore)
+- 1–2 rare max-HP recovery items (Aberrant counter; names TBD → W10)
+
+**Handoffs to other workshops:**
+
+- **W9 (Difficulty Tier Mechanics):** owns the easy-mode → hard-mode unlock rule (Isaac-style: unlocks after first few successful runs), per-tier multipliers, scarcity changes (e.g., scarcer health drops in hard mode).
+- **W10 (Narrative Architecture):** owns the narrative flag that gates Aberrant's unlock; owns the names of the 1–2 rare max-HP recovery items in the pool.
 
 ---
 
 ## W2 — Combat Feel & Weapon Patterns
 
-**Status:** Not started
+**Status:** Decisions promoted
 **Gates:** M1 (basic feel), M3.5 (full feel pass)
 **Pre-read:** [PLANNING.md § Combat](PLANNING.md#combat--real-time-action), [PLANNING.md § Game Feel](PLANNING.md#game-feel)
 
-**Output owed:**
-- Melee weapon roster (sword-equivalent, hammer, dual-blade, etc.) with attack timing tables: windup frames, active frames, recovery frames, hitbox shape
-- Ranged weapon roster (if any) with projectile speed, fire rate, ammo or cooldown rules
-- Hit-stop magnitude per weapon (ms)
-- Screen shake trauma values per event (hit, dodge, damage taken, death)
-- Dodge: i-frame count, recovery frames, distance, post-dodge vulnerability
-- Default attack chains (combo cancels?) or single-swing?
-- Per-weapon "feel adjective" — heavy / fast / brutal / clean
+**Output owed (all delivered — see PLANNING.md § Combat and § Game Feel for full spec):**
+- Melee weapon roster with attack timing tables (windup/active/recovery), reach, arc, damage, hit-stop
+- Ranged weapon decision: tools-as-ranged (slingshot, stun coil) — laser pistol deferred post-slice
+- Hit-stop magnitude per weapon (ms, target / attacker; attacker = half target)
+- Screen shake trauma values per event
+- Dodge profile concretes (i-frames, recovery, distance, post-dodge vulnerability window) for default Roll and Shoulder-Charge
+- Default attack chain: 3-hit (light/light/heavy) with per-weapon variation; cancel rules
+- Per-weapon "feel adjective" — clean / heavy / fast / precise / brutal / deft
 
-**Prompt questions:**
-- Is the default melee a single tap or a 3-hit combo?
-- Can attacks be cancelled into dodge? Into other attacks?
-- Do ranged weapons exist at all in the slice, or strictly melee + tools?
-- Is hit-stop applied to the attacker, the target, or both?
-- Should each vessel have a default weapon, or is the weapon always a found item?
+**Decisions (summary — full spec lives in PLANNING.md):**
 
-**Decisions:** *(filled in during workshop)*
+1. **3-hit combo as default.** Each weapon defines its own combo; pickups can extend (cap +2). Combo step has a 6-frame cancel window at start of recovery; outside that window, combo resets.
+
+2. **Cancel rules.** Dodge cancels any frame ≥ end-of-windup. Attacks cannot cancel into other attacks — only the chain advances.
+
+3. **Hit-stop applies to both attacker and target.** Target freeze is 2× attacker freeze. All values configurable per attack in `.tres`.
+
+4. **Vessels always carry a weapon.** No bare-hands state. Each vessel ships with a default; found weapons replace.
+
+5. **Weapon roster (slice — 5 vessel defaults + 1 found):** Sword (Clone, clean), Hammer (Exo, heavy), Dual-blade (Synthetic, fast), Rapier (Android, precise), Claws (Aberrant, brutal), Daggers (found, deft). Frame data, damage, hit-stop, and per-weapon special rules locked in PLANNING.md.
+
+6. **Ranged is tool-shaped, not gun-shaped, in the slice.** Slingshot (ammo-fed, Zelda-style) and Stun Coil (charge-up, short-range stun arc) are in. Laser Pistol deferred post-slice.
+
+7. **Dodge profile numbers locked.** Default Roll: 12 frames, 8 i-frames (frames 2–9), 3 recovery, ~96px, 0.6s recharge. Shoulder-Charge: 16 frames, 10 i-frames, 4 recovery, ~128px, contact damage, 1.0s recharge. **Post-dodge vulnerability rule:** the last 3 recovery frames have no i-frames — this is the deliberate punish window.
+
+8. **Trauma values locked** for light/heavy hit landed, damage taken (light/heavy), dodge, perfect block, death. See PLANNING.md table.
+
+9. **Numbers ship configurable.** Frame counts, hit-stop ms, trauma values, dodge timings — all `.tres` or inspector-exposed. Real balance happens at playtest.
+
+**Items implicitly created by W2 (need IDs in `Assets/Data/Items/` and `Assets/Data/Tools/` when the content pipeline lands):**
+
+- `Refrain` (passive; +1 combo step, stacks once, cap +2)
+- `Pirouette` (passive; final combo hit becomes 360° hitbox)
+- `Active Shield` (active tool; hold to raise, 75% frontal reduction, 3 charges, perfect-block window first 8 frames)
+- `Slingshot` (active tool; ammo-fed ranged)
+- `Stun Coil` (active tool; charge-up short-range stun arc)
+- `Poison Coat` (passive; DoT on damaging hit, 1 dmg/sec for 4s, refreshes, magnitude doesn't stack)
+
+**Handoffs to other workshops:**
+
+- **W3 (Enemy Roster):** weapon frame data drives enemy windup-readability targets — enemy telegraphs need to be at least as long as the player's longest dodge i-frame window so dodging stays viable.
+- **W5 (Items: Passives, Tools, Consumables):** owns full pool integration of `Refrain`, `Pirouette`, `Active Shield`, `Slingshot`, `Stun Coil`, `Poison Coat` — rarity tiers, drop weights, vendor stock rules, synergy tags.
+- **W6 (Synergies):** Poison Coat + Aberrant's Bleed = double-DoT build identity; combo extenders (`Refrain`, `Pirouette`) multiply DoT trigger frequency. Worth designing around.
 
 ---
 
