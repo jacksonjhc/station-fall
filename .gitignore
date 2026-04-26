@@ -10,3 +10,6 @@ obj/
 *.suo
 .idea/
 TestResults/
+
+# Claude Code per-user permission grants (settings.json is shared)
+.claude/settings.local.json
