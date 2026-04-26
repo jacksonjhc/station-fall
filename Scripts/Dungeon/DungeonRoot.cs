@@ -1,6 +1,7 @@
 using Godot;
 using Stationfall.Core.Entities;
 using Stationfall.Core.ProcGen;
+using Stationfall.Core.Progression;
 using Stationfall.Core.Runs;
 using Stationfall.Godot.Persistence;
 using Stationfall.Godot.Player;
@@ -27,10 +28,12 @@ public partial class DungeonRoot : Node2D
     public RunState State => _runState;
     public string ActiveRoomId => _runState.Dungeon.ActiveRoomId;
     public IReadOnlySet<string> VisitedRoomIds => _runState.Dungeon.VisitedRoomIds;
+    public MetaState Meta => _meta;
 
     // M3 will inject this from outside (vessel select → run start). For now,
     // construct a default Clone-vessel run so DungeonRoot owns its own state.
     private readonly RunState _runState = new(PlayerVessel.CreateClone());
+    private MetaState _meta = new();
     private PlayerController? _player;
     private Node2D? _roomSlot;
     private RoomController? _activeRoom;
@@ -39,6 +42,9 @@ public partial class DungeonRoot : Node2D
 
     public override void _Ready()
     {
+        _meta = SaveFile.LoadOrCreate();
+        GD.Print($"[save] loaded MetaState ({_meta.NarrativeFlags.Count} flags)");
+
         _player = GetNodeOrNull<PlayerController>(PlayerPath);
         _roomSlot = GetNodeOrNull<Node2D>(RoomSlotPath);
         _healthBar = GetNodeOrNull<HealthBar>(HealthBarPath);
@@ -52,11 +58,24 @@ public partial class DungeonRoot : Node2D
                 _healthBar.SetHealth(_player.Stats.Hp, _player.Stats.MaxHp);
                 _player.HealthChanged += (hp, maxHp) => _healthBar.SetHealth((int)hp, (int)maxHp);
             }
+            _player.Died += OnPlayerDied;
         }
 
         if (_minimap != null) _minimap.SetLayout(Layout);
 
         EnterRoom(Layout.EntryRoomId, fromDirection: null);
+    }
+
+    private void OnPlayerDied()
+    {
+        // M3 closing: prove the meta-save pipe is real end to end. Stamp a
+        // first-death flag, persist, and reload the scene. RunState is
+        // discarded — only MetaState survives.
+        if (_meta.AddFlag("firstDeath"))
+            GD.Print("[save] first death recorded");
+        SaveFile.Save(_meta);
+        GD.Print("[save] meta written; reloading scene");
+        GetTree().ReloadCurrentScene();
     }
 
     private void EnterRoom(string roomId, CardinalDirection? fromDirection)
