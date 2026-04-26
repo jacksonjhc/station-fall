@@ -7,6 +7,7 @@ public class RunState
     public Guid RunId { get; } = Guid.NewGuid();
     public PlayerVessel Vessel { get; }
     public int Floor { get; private set; } = 1;
+    public DungeonState Dungeon { get; } = new();
     public IReadOnlyList<string> NarrativeFlags => _narrativeFlags.AsReadOnly();
 
     private readonly List<string> _narrativeFlags = [];

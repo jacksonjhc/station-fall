@@ -89,13 +89,13 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 **Goal:** enemies can hurt the player; player can kill them. **Save/load works end to end** so all subsequent Core types are designed with serialization as a constraint.
 
-**Workshop gates:** W3 (Enemy Roster) — at least the first archetype (likely melee rusher) fully specced.
+**Workshop gates:** W3 (Enemy Roster) ✓ — Twitching Patient (melee rusher, starter enemy) fully specced; full Sector 1 roster available for M9.
 
 **Tasks:**
 - `Core/Ai/AiState.cs` enum (Idle, Patrol, Chase, Attack, Stagger, Dead)
 - `Core/Ai/SensorData.cs` record (distance, has line-of-sight, hp ratio)
-- `Core/Ai/EnemyAiBrain.cs` with one archetype per W3 (likely melee rusher)
-- Tests: chase activates inside aggro range and only with line-of-sight; attack triggers in melee range; stagger transitions out after duration
+- `Core/Ai/EnemyAiBrain.cs` with the Twitching Patient brain per [PLANNING.md § Enemy Roster](PLANNING.md#enemy-roster) — `Vision` perception, 160 px aggro, LOS required, IV Lunge attack (windup 14 / active 8 / recovery 22)
+- Tests: chase activates inside aggro range and only with line-of-sight; attack triggers in melee range; stagger transitions out after duration; LOS loss expires aggro after 2.0 sec
 - `Scripts/Enemies/EnemyController.cs` — runs the brain each `_PhysicsProcess`, executes movement and attack hitbox
 - Enemy definition loaded from `Assets/Data/Enemies/*.tres` via the content authoring pipeline (per [PLANNING.md § Content Authoring Pipeline](PLANNING.md#content-authoring-pipeline))
 - Enemy-locked doors (close on entry, open on clear)
@@ -234,14 +234,14 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 **Goal:** Sector 1 (Medical Wing) is end-to-end playable and **feels like the horror game we said we were making**.
 
-**Workshop gates:** W8 (Sector 1 deep dive), W10 (Narrative Architecture), W3/W4/W5 final entries for Sector 1 roster.
+**Workshop gates:** W8 (Sector 1 deep dive), W10 (Narrative Architecture), W3 ✓ (Sector 1 roster locked), W4/W5 final entries for Sector 1.
 
 **Tasks:**
 
 *Content* (driven by workshops):
 - Template pool of 6–10 hand-authored Medical Wing rooms in `Scenes/Rooms/MedicalWing/`
 - Generator selects from templates; assigns content tier from difficulty tier
-- 2–3 enemy archetypes (rusher, ranged shooter, one elite) per W3
+- Sector 1 enemy roster per [PLANNING.md § Enemy Roster](PLANNING.md#enemy-roster): 6 enemies (Twitching Patient, Drip Drone, Convulsing Body, Suture Mite, Bio-Seal Orderly, Corrupted Medbot) plus 4 elite variants. Corrupted Medbot is deferrable if scope tightens.
 - One mid-boss + one sector boss (multi-phase) per W4
 - One vendor (spend credits)
 - 3–5 narrative fragments per W10: data logs, a terminal, one echo fragment
@@ -295,6 +295,6 @@ After W1 + W2, M1 is unblocked.
 
 ### Then, before M3
 
-4. **W3 — Enemy Roster** (at minimum: first archetype fully specced)
+4. **W3 — Enemy Roster** ✓ (full Sector 1 roster + durable principles promoted to PLANNING.md)
 
 The remaining workshops (W4–W6, W8–W10) can be scheduled against their later milestones — see the gate table at the top of this file.

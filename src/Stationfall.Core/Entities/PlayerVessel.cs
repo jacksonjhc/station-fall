@@ -1,19 +1,28 @@
+using Stationfall.Core.Combat;
+
 namespace Stationfall.Core.Entities;
 
-public class PlayerVessel
+public record PlayerVessel(
+    string Name,
+    EntityStats BaseStats,
+    DodgeProfile DodgeProfile,
+    WeaponDefinition Weapon,
+    AdrenalineRushConfig SignatureConfig
+)
 {
-    public string VesselType { get; }
-    public EntityStats BaseStats { get; }
-
-    public PlayerVessel(string vesselType, EntityStats baseStats)
-    {
-        VesselType = vesselType;
-        BaseStats = baseStats;
-    }
-
-    public static PlayerVessel Clone() =>
-        new("Clone", new EntityStats(MaxHp: 100, Hp: 100, Speed: 5, Attack: 10, Defense: 5));
-
-    public static PlayerVessel Android() =>
-        new("Android", new EntityStats(MaxHp: 80, Hp: 80, Speed: 7, Attack: 8, Defense: 8));
+    public static PlayerVessel CreateClone() => new(
+        Name: "Clone",
+        BaseStats: new EntityStats(
+            MaxHp: 5,
+            Hp: 5,
+            MoveSpeed: 200f,
+            AttackPower: 1,
+            AttackRate: 1.5f,
+            Reach: 32,
+            Luck: 0,
+            Armor: 0),
+        DodgeProfile: DodgeProfile.Roll,
+        Weapon: WeaponDefinition.Sword,
+        SignatureConfig: AdrenalineRushConfig.Default
+    );
 }

@@ -1,0 +1,130 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Bootstrap/BootstrapRoot.cs" id="1_root"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerController.cs" id="2_player"]
+[ext_resource type="Script" path="res://Scripts/Combat/HitboxComponent.cs" id="3_hit"]
+[ext_resource type="Script" path="res://Scripts/Combat/HurtboxComponent.cs" id="4_hurt"]
+[ext_resource type="Script" path="res://Scripts/Enemies/TrainingDummy.cs" id="5_dummy"]
+[ext_resource type="Script" path="res://Scripts/UI/HealthBar.cs" id="6_hp"]
+[ext_resource type="Script" path="res://Scripts/Debug/DebugOverlay.cs" id="7_debug"]
+
+[sub_resource type="RectangleShape2D" id="shape_player_body"]
+size = Vector2(28, 28)
+
+[sub_resource type="RectangleShape2D" id="shape_player_attack"]
+size = Vector2(40, 32)
+
+[sub_resource type="RectangleShape2D" id="shape_dummy_hurt"]
+size = Vector2(40, 40)
+
+[node name="Bootstrap" type="Node2D"]
+script = ExtResource("1_root")
+
+[node name="Floor" type="ColorRect" parent="."]
+offset_left = -2000.0
+offset_top = -2000.0
+offset_right = 2000.0
+offset_bottom = 2000.0
+color = Color(0.07, 0.08, 0.10, 1)
+mouse_filter = 2
+
+[node name="Grid" type="ColorRect" parent="."]
+offset_left = -640.0
+offset_top = -360.0
+offset_right = 640.0
+offset_bottom = 360.0
+color = Color(0.10, 0.12, 0.14, 1)
+mouse_filter = 2
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(-200, 0)
+collision_layer = 1
+collision_mask = 16
+script = ExtResource("2_player")
+AttackHitboxPath = NodePath("AttackHitbox")
+
+[node name="Visual" type="ColorRect" parent="Player"]
+offset_left = -14.0
+offset_top = -14.0
+offset_right = 14.0
+offset_bottom = 14.0
+color = Color(0.45, 0.65, 0.95, 1)
+mouse_filter = 2
+
+[node name="BodyShape" type="CollisionShape2D" parent="Player"]
+shape = SubResource("shape_player_body")
+
+[node name="AttackHitbox" type="Area2D" parent="Player"]
+position = Vector2(20, 0)
+collision_layer = 4
+collision_mask = 2
+monitoring = false
+script = ExtResource("3_hit")
+ShapePath = NodePath("Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="Player/AttackHitbox"]
+shape = SubResource("shape_player_attack")
+disabled = true
+
+[node name="Visual" type="Polygon2D" parent="Player/AttackHitbox"]
+visible = false
+color = Color(1, 0.85, 0.3, 0.7)
+polygon = PackedVector2Array(-20, -16, 20, -16, 20, 16, -20, 16)
+
+[node name="Camera" type="Camera2D" parent="Player"]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+
+[node name="Dummy" type="Node2D" parent="."]
+position = Vector2(160, 0)
+script = ExtResource("5_dummy")
+HurtboxPath = NodePath("Hurtbox")
+SpritePath = NodePath("Sprite")
+MaxHp = 999
+HpResetDelaySeconds = 1.5
+
+[node name="Sprite" type="ColorRect" parent="Dummy"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.85, 0.30, 0.30, 1)
+mouse_filter = 2
+
+[node name="Hurtbox" type="Area2D" parent="Dummy"]
+collision_layer = 2
+collision_mask = 4
+script = ExtResource("4_hurt")
+
+[node name="HurtShape" type="CollisionShape2D" parent="Dummy/Hurtbox"]
+shape = SubResource("shape_dummy_hurt")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="HealthBar" type="Control" parent="HUD"]
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 400.0
+offset_bottom = 80.0
+mouse_filter = 2
+script = ExtResource("6_hp")
+
+[node name="Debug" type="CanvasLayer" parent="."]
+script = ExtResource("7_debug")
+PlayerPath = NodePath("../Player")
+StatusLabelPath = NodePath("Panel/Status")
+
+[node name="Panel" type="PanelContainer" parent="Debug"]
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -440.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 84.0
+
+[node name="Status" type="Label" parent="Debug/Panel"]
+text = "loading…"

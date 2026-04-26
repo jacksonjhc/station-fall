@@ -39,7 +39,7 @@ The vertical slice = **Sector 1 (Medical Wing) playable end to end with all syst
 Definitions of done:
 - Vessel select screen with at least one playable vessel (Clone) and one preview-only locked option
 - Procedurally generated Medical Wing dungeon (template-pool rooms, valid critical path every seed)
-- Real-time combat against 2–3 enemy archetypes
+- Real-time combat against the full Sector 1 enemy roster (6 enemies across 5 archetypes — see § Enemy Roster)
 - Doors, keys, room state, minimap
 - Magnetic Grapple usable in combat AND one of (traversal | puzzle)
 - 2–3 acquired passive modules that visibly interact with each other
@@ -327,12 +327,16 @@ Spatial, player-skill-driven. Think Link's Awakening crossed with Hades.
 - Sector-boss clear triggers a small heal
 - **No** heal-on-kill or heal-per-room as defaults — pickup of those is an item-tier perk only
 
-**Enemy archetypes (template — full roster is W3):**
-- Melee rusher — predictable, punishable charge
-- Ranged shooter — maintains distance; projectile patterns
-- Shield bearer — frontal block; flank or break with a tool
-- Hazard spawner — drops mines, summons drones
-- Elite — named variant of any archetype, harder, drops better loot
+**Enemy archetypes (W3):**
+- **Melee rusher** — predictable, punishable charge
+- **Ranged shooter** — maintains distance; projectile patterns
+- **Shield bearer** — frontal block; flank, break with bash/heavy finisher, or disable with electric
+- **Swarm** — small, individually weak, dangerous in groups; tests crowd control
+- **Ambient hazard creature** — stationary or near-stationary; teaches "not every threat chases you" and contributes atmosphere
+- **Status applier** — ranged support that hits with debuffs (slow, bleed) more than damage; teaches debuff UI and target priority
+- **Elite** — variant of any base archetype: modest stat scaling **plus exactly one readable pattern mutation**. Elites never get faster telegraphs.
+
+Full per-archetype detail (Sector 1 roster, elite rules, perception tags, durable principles) lives in [§ Enemy Roster](#enemy-roster).
 
 **Core owns:** damage formulas, status-effect tick logic, enemy AI state-machine definitions, stat application
 **Godot owns:** physics, collision, hitbox geometry, animation, audio/visual feedback, input
@@ -388,20 +392,349 @@ Each transition is a pure function: `(sensorData) → nextState`. Godot enemy no
 
 This keeps AI behavior unit-testable without the engine.
 
+### Enemy Roster
+
+Full W3 output. The vertical slice ships the complete Sector 1 roster (6 enemies); Sectors 2–5 are sketched and finalized in their own future passes.
+
+#### Durable principles (apply to every enemy in every sector)
+
+1. **Telegraph floor.** Enemy attack windup is **never below 14 frames at 60fps**. The dodge Roll has 8 i-frames (frames 2–9 of a 12-frame action); shorter windups make dodging unreliable. **Elites never get faster telegraphs** — pattern mutation is allowed, telegraph erosion is not.
+2. **Contact damage off by default.** An enemy only deals contact damage if its definition explicitly opts in (most don't — damage comes from telegraphed attacks).
+3. **Hazards damage enemies.** Knockback, grapple, and baiting through hazards are valid tactics. Enemies do not get hazard immunity unless their identity is "thing made of fire" or similar.
+4. **Sector 1 resistance ceiling = 1.** With player damage at 1–2 per hit, Resistance 2 is functionally Immunity. Use Immunity directly when you mean it.
+5. **Elite rule.** Modest stat scaling **plus exactly one readable pattern mutation**. Pure stat scaling is rejected as boring; full pattern overhauls are rejected as a different enemy.
+6. **Numbers are playtest-tunable.** Every value below ships in `.tres` data; balance happens at playtest, not on paper.
+
+#### `PerceptionType` enum
+
+| Tag | Meaning | Sector 1 examples |
+|-----|---------|-------------------|
+| `Vision` | Needs LOS and sufficient light | Twitching Patient, Drip Drone, Bio-Seal Orderly, Corrupted Medbot |
+| `Sound` | Reacts to attacks, footsteps, impacts; doesn't need LOS | Suture Mite |
+| `Heat` | Detects living vessels better than synthetic/mechanical | Reserved for Sectors 2+ |
+| `Omniscient` | Always knows player location | Bosses, special horrors only |
+| `Ambient` | Doesn't hunt; acts on timer/proximity | Convulsing Body |
+
+Sector 1 leans `Vision` so darkness matters. `Sound` on Suture Mites makes dark rooms genuinely dangerous without overusing the tag.
+
+#### Shared aggro defaults
+
+| Rule | Default |
+|------|---------|
+| Idle until aggro condition met | Yes |
+| Damage always causes aggro | Yes |
+| Most enemies require LOS | Yes (`Sound` and `Omniscient` excepted) |
+| Last-known-position memory | Yes |
+| Memory duration | 1.5–3.0 sec by archetype |
+| Enemies can damage each other with hazards | Yes |
+| Enemies can be damaged by room hazards | Yes |
+| Contact damage default | Off unless explicitly specified |
+
+#### Sector 1 — Medical Wing (full roster)
+
+##### 1. Twitching Patient — starter enemy, melee rusher
+
+Half-collapsed humanoid, IV stand still attached, lurches at the player. Teaches the entire combat sentence in the first 30 seconds: notice → telegraph → dodge → punish recovery.
+
+| | |
+|---|---|
+| HP | 2 |
+| Contact damage | 0 |
+| Attack damage | 1 (physical slash) |
+| Idle move | 35 px/sec |
+| Chase move | 75 px/sec |
+| Lunge speed | 180 px/sec |
+| Stagger duration | 10 frames |
+| Attack cooldown | 1.25 sec after recovery |
+| `PerceptionType` | `Vision` |
+| Aggro range | 160 px |
+| LOS required | Yes |
+| Lose aggro | After 2.0 sec without LOS |
+| Dark-room behavior | Cannot detect beyond 80 px unless player attacks or makes noise |
+
+**Attack: IV Lunge** (windup 14 / active 8 / recovery 22 frames @ 60fps) — straight-line lunge ~44 px forward at last-known position. Long recovery is the punish window.
+
+**Tells:** head snaps on aggro · IV pole rattles before lunge · body leans opposite the lunge during windup · drags one foot when overextended.
+
+**Counter:** wait for wind-back, dodge the lunge, attack during recovery. Bait into hazards in later rooms.
+
+**Drops:** 1 cr (40%) · 2 cr (10%) · med scrap (5%) · nothing (45%).
+
+**Resistance:** all damage types 0. No immunities.
+
+##### 2. Drip Drone — first ranged enemy
+
+Dangling med-bot with a syringe gun. Teaches LOS, perpendicular dodging, and ranged-priority.
+
+| | |
+|---|---|
+| HP | 1 |
+| Contact damage | 0 |
+| Projectile damage | 1 (physical pierce) |
+| Move | 60 px/sec |
+| Preferred range | 140 px |
+| Projectile speed | 170 px/sec |
+| Fire cooldown | 1.5 sec |
+| `PerceptionType` | `Vision` |
+| Aggro range | 220 px |
+| LOS required | Yes |
+| Lose aggro | After 1.5 sec without LOS |
+| Dark-room behavior | Red targeting laser reveals it before firing |
+
+**Attack: Syringe Shot** (aim telegraph 24 / fire 1 / recovery 28). Red laser locks onto the player's *current* position — leading the laser by moving sideways defeats the shot.
+
+**Tells:** laser sight · charging whine · backs away when player closes.
+
+**Counter:** break LOS, dodge perpendicular, rush during recovery. Prioritize before fighting rushers.
+
+**Drops:** 1 cr (45%) · slingshot ammo *(post-W5)* (10%) · med scrap (5%) · nothing (40%).
+
+**Resistance:** electric −1 (vulnerable). Poison Immune.
+
+##### 3. Convulsing Body — ambient hazard creature
+
+A body on a gurney that periodically convulses and emits a poison cloud. Atmosphere first, combat second.
+
+| | |
+|---|---|
+| HP | 1 |
+| Contact damage | 0 |
+| Cloud damage | 1 poison after 0.75s exposure, then 1 poison/sec while in cloud |
+| Pulse cooldown | 3.0 sec |
+| Cloud duration | 1.25 sec |
+| `PerceptionType` | `Ambient` |
+| Aggro | N/A |
+| Dark-room behavior | Silhouette visible only during convulsion |
+
+**Pattern: Septic Exhale** (warning 30 / active 75 / recovery 75 frames). Never chases. Damages enemies too.
+
+**Tells:** sheet rises and falls before pulse · heart monitor glitches · gas color visible before damage active · sound is gross-but-quiet (no jump-scare).
+
+**Counter:** don't stand in the gas during warning · bait Twitching Patients into the cloud · Gas Mask (W5/W7) makes it harmless.
+
+**Drops:** 1 cr (15%) · med scrap (15%) · nothing (70%).
+
+**Resistance:** fire −1 (vulnerable). Poison Immune.
+
+##### 4. Suture Mite — swarm pressure
+
+Spawns in packs of 3–5. Teaches crowd control, movement, and not tunneling on one target.
+
+| | |
+|---|---|
+| HP | 1 |
+| Contact damage | 0 |
+| Attack damage | 1 (physical pierce) |
+| Move | 95 px/sec |
+| Attack cooldown | 1.1 sec |
+| Spawn count | 3–5 per pack |
+| `PerceptionType` | `Sound` |
+| Aggro range | 130 px (220 px if player attacks nearby) |
+| LOS required | No, but walls block pathing |
+| Lose aggro | After 3.0 sec without sound or proximity |
+| Dark-room behavior | Detects by sound — dark rooms don't disable them |
+
+**Attack: Needle Skitter** (windup 16 / active 5 / recovery 14). Bumped from 12-frame windup to satisfy the telegraph floor in swarm context — overlapping 12-frame windups in a pack made dodging unreliable.
+
+**Hard rule:** no overlapping full-body contact damage. Mite damage comes from the active stab only, never from being touched.
+
+**Tells:** metallic skittering grows louder as they close · brief stop before stabbing · tail flashes/lifts during windup.
+
+**Counter:** wide arcs · keep moving · don't get surrounded · gas vents and fire jets are excellent.
+
+**Drops:** 1 cr (20%) · nothing (80%).
+
+**Resistance:** bash −1 (vulnerable) · electric −1 (vulnerable). Poison Immune. *(No pierce resistance — Android's Rapier and Daggers should not be punished by the player's first swarm fight.)*
+
+##### 5. Bio-Seal Orderly — shield/flank teacher
+
+Containment officer with a shield projector and stun baton. Teaches positioning, flanking, and damage-type counters.
+
+| | |
+|---|---|
+| HP | 4 |
+| Contact damage | 0 |
+| Attack damage | 1 (physical bash) |
+| Move | 55 px/sec |
+| Shielded frontal arc | 120° |
+| Attack cooldown | 1.6 sec |
+| `PerceptionType` | `Vision` |
+| Aggro range | 150 px |
+| LOS required | Yes |
+| Lose aggro | After 2.5 sec without LOS |
+| Dark-room behavior | Carries a small flickering medical lamp — visible in darkness |
+
+**Bio-Seal Brace** (frontal defense rule):
+- Frontal slash and pierce: **−1 damage (resistance)**
+- Frontal bash: **full damage**
+- **Heavy combo finisher (any damage type) ignores the resistance** — Sword/Claws/Daggers' final hit, all of Hammer
+- Side and rear attacks: **full damage** regardless of type or position in combo
+- **Hazards ignore facing** — gas, fire, electric floor, falling debris all hit normally
+- **Electric damage disables the brace for 1.5 sec** — any source
+
+This means Synthetic (Dual-blade, no Heavy) and Android (Rapier, no Heavy) **must flank, use electric, or use hazards** — they cannot brute-force through the front. Sword/Claws/Daggers/Hammer can choose to commit a full combo from the front or flank for efficiency.
+
+**Attack: Restraint Baton** (windup 18 / active 7 / recovery 24).
+
+**Tells:** shield projector hums when frontal guard is active · baton arm lifts slowly before strike · shield flickers during recovery.
+
+**Counter:** circle around · use bash/Heavy finisher/electric · pull or knock into hazards.
+
+**Drops:** 2 cr (45%) · 4 cr (10%) · small medkit (5%) · nothing (40%).
+
+**Resistance:** *(per Bio-Seal Brace above)* electric −1 (vulnerable, also disables brace). Poison 1 (resistance from any direction).
+
+##### 6. Corrupted Medbot — debuff teacher *(scope-up: 6th enemy beyond W3 baseline)*
+
+Ranged support with two attacks (one slow dart, one melee bleed). Teaches the debuff UI, target priority, and that zero-damage hits can still matter. Most expensive Sector 1 enemy to implement; if M9 schedule slips, this is the one to defer.
+
+| | |
+|---|---|
+| HP | 3 |
+| Contact damage | 0 |
+| Move | 65 px/sec (chase 75 / retreat 85) |
+| Preferred range | 130 px |
+| Stagger duration | 8 frames |
+| Ranged cooldown | 1.4 sec |
+| Melee cooldown | 1.8 sec |
+| `PerceptionType` | `Vision` |
+| Aggro range | 210 px |
+| LOS required | Yes |
+| Lose aggro | After 1.75 sec without LOS |
+| Dark-room behavior | Diagnostic scanner glows blue before attacks — reveals itself |
+
+**Attack 1: Sedative Dart** (aim 22 / fire 1 / recovery 24). 1 physical pierce + **Slow** debuff: −35% move, −20% dodge distance, **no attack-rate effect**, 2.5 sec, refreshes (no magnitude stack). Projectile 155 px/sec, 1.5 sec lifetime, blocked by walls.
+
+**Attack 2: Emergency Sutures** (windup 16 / active 6 / recovery 30). 0 direct damage + **Bleed** debuff: 1 pierce DOT every 2 sec for 4 sec (2 total), refreshes (no magnitude stack), ignores armor.
+
+**AI priority:**
+1. Out of aggro: idle/patrol
+2. In preferred range with LOS: Sedative Dart
+3. Player too close: Emergency Sutures (panic melee)
+4. Dart on cooldown: kite away
+5. Damaged recently: retreat 0.5 sec, then resume
+
+**Design intent:** mixing one Medbot with one Twitching Patient creates the lesson "being slowed makes the basic lunge enemy more dangerous" without authoring extra content.
+
+**Tells:** blue laser line + scanner tone (Dart) · surgical arms unfold + pulsing red cross (Sutures) · stapler/suture sound during active frames.
+
+**Counter:** dodge perpendicular to laser · break LOS behind beds/curtains/pillars · prioritize before melee enemies · don't close recklessly when slowed.
+
+**Drops:** 1 cr (35%) · 2 cr (15%) · small medkit (5%) · anticoagulant *(post-W5)* (5%) · nothing (40%). *(Medkit drop rate kept low — status enemies should not become health piñatas.)*
+
+**Resistance:** bash −1 (vulnerable) · electric −1 (vulnerable). Poison Immune.
+
+#### Sector 1 elites
+
+Each Sector 1 base enemy that exists in the slice gets one elite variant. Elites follow the durable elite rule.
+
+**Global elite scaling:**
+
+| Stat | Modifier |
+|------|----------|
+| HP | +50%, rounded up |
+| Move | +10% |
+| Attack cooldown | −15% |
+| Damage | +0 in onboarding tier; +1 only at higher difficulty tiers |
+| Drop quality | +1 tier |
+| Visual size / silhouette | +10% scale or stronger silhouette |
+| Telegraph | **Never shorter than base** |
+
+**Pattern mutations (one per elite):**
+
+- **Redline Patient** (Twitching Patient elite, HP 3) — after a missed IV Lunge, may perform a second short stumble-lunge with its own 12-frame tell. Teaches "elite means altered pattern, not just more health."
+- **Dose Drone** (Drip Drone elite, HP 2) — fires a two-shot burst; second shot retargets after 10 frames; long recovery after the second shot. Teaches "don't relax after the first dodge."
+- **Containment Orderly** (Bio-Seal Orderly elite, HP 6) — shield briefly projects a small frontal shockwave after blocking three hits (20-frame telegraph). Electric still disables the brace, which also cancels the shockwave windup. *Note: Aberrant's max Echo Surge does 5 damage to elites, leaving Containment at 1 HP — a deliberate "elites survive your panic button" beat. Revisit after playtesting.*
+- **Overdose Medbot** (Corrupted Medbot elite, HP 5) — **Double Dose:** one Sedative Dart, 12-frame pause, second Dart at the player's *updated* position. Both shots keep visible laser tells. Bleed duration on Emergency Sutures extended to 6 sec. Use sparingly — late-Sector-1 elite, not opening rooms.
+
+Suture Mites and Convulsing Bodies don't get elite variants in Sector 1 — swarms scale via pack size, and ambient hazards scale via density and pulse timing.
+
+#### Recommended encounter order (first run)
+
+The first run's room order is generator-driven, but the slice's tier-0 generator should heavily weight the following progression:
+
+1. **Room 1 — tone-setting, no combat.** Broken medical bed, flickering observation window, body bag that twitches once but does nothing, sealed `BIO-SEAL ACTIVE` door. No tutorial text.
+2. **Room 2 — first Twitching Patient.** Single enemy, no hazards, room has dodge space. Patient starts facing away; on aggro, turns slowly, then IV Lunges. Player learns the full combat loop here.
+3. **Room 3 — two Twitching Patients, staggered activation.** Target awareness without true swarm pressure.
+4. **Room 4 — Drip Drone behind cover.** Ranged-priority lesson.
+5. **Room 5 — Convulsing Body + Corrupted Medbot.** Hazard exploitation + debuff awareness in one room (the Medbot's slow makes the gas harder to escape — the lessons reinforce each other rather than competing).
+6. **Room 6 — Suture Mite pack OR Bio-Seal Orderly.** Generator picks one based on tier; both are valid "graduation" fights.
+
+#### Sectors 2–5 — sketch (full design TBD per future workshops)
+
+5 enemies per sector, one elite per archetype, ~25 enemies total at full game scope. Full design in future passes; this sketch exists so M9's slice doesn't paint Sector 1 into a corner.
+
+| Sector | Sketch roster |
+|--------|---------------|
+| **2 — Engineering** | Furnace Crawler (fire melee ambusher) · Arc Welder Drone (electric line shooter) · Pressure Hulk (slow heavy charger) · Repair Swarm (heals/shields nearby machines) · Heat-Vent Larva (hazard spawner using fire jets) |
+| **3 — Research** | Failed Clone (player-mimic melee) · Phase Aberration (short-range teleport attacker) · Glass-Tank Oracle (stationary psychic/echo turret) · Splitter Mass (divides into smaller bodies on death) · Anomaly Leech (drains tool cooldown / signature charge) |
+| **4 — Command** | Security Drone (disciplined ranged patrol) · Riot Frame (shield bearer with stun baton) · Camera Warden (buffs enemies while alarm active) · Lockdown Officer (creates temporary door/laser barriers) · Blackout Stalker (stronger in darkness) |
+| **5 — The Core** | Echo Husk (mimics prior player movement) · Gravity Wretch (distorts movement zones) · Null Seraph (disables passives in pulses) · Core Parasite (attaches to hazards, amplifies them) · Reincarnation Error (rare late-game hunter built from failed vessel data) |
+
+These are working names and intents only. They reserve design space and signal which damage types and mechanics each later sector will introduce; nothing in the table is locked.
+
 ### Room System
 
 Atomic gameplay unit.
 
 **State lifecycle:** `Unexplored → Entered → Active → Cleared`
 
-**Door types:**
-- Open
-- Enemy-locked (seals on enter, opens on clear)
-- Key-locked (specific key)
-- Condition-locked (item, ability, puzzle)
-- Secret (hidden until adjacent or scanner used)
+**Door taxonomy (W7):**
 
-Additional door variants (timer-locked, hazard-gated, factional, etc.) are **workshop output** — W7.
+| Category | Description | When |
+|---|---|---|
+| Basic — Open / Closed | No requirements. Closed/Open are visual states only — no Interact required. | M2 |
+| Locked — generic key | Consumed on use; stack count visible on HUD. **Skeleton Key** is a *rare* run-permanent variant. Key-drop-rate items exist as passives. | M4 |
+| Locked — unique key | HUD-pinned, sector-scoped, color-coded (red / blue / green / yellow, Doom-style). | M4+ |
+| Barred — kill-clear | Locks behind the player on entry (Hades-style commitment); opens when room is cleared. *Replaces the prior "EnemyLocked" naming.* | M3 |
+| Barred — switch / lever | Opens when a paired switch / lever / pressure plate / console is activated. | M2+ |
+| Barred — hack | Opens when a paired terminal is hacked. Operator's *Console Hack* bypasses some. | M5+ |
+| Barred — one-way | Opens only from one side. Visually telegraphed on the wrong side (visible bars + floor arrow / glyph) so the player never thinks they missed a switch. Reserve the silhouette-only treatment for scripted "you cannot go back" beats. | M5+ |
+| Secret | Hidden door behind a wall. Reveals via cracked-wall destructible / no-indicator super-secret / Scanner item / triggered switch or terminal. | M5+ |
+
+**Reset rule:** doors are sticky-open by default — once unlocked or disarmed, they stay openable for the rest of the run. **Exception:** doors wired to a contraption can be intentionally re-closed by the contraption's logic. They never auto-reset.
+
+**Triggered-closed door visual cue:** when a contraption closes a door, the player must be able to identify the trigger — colored conduits/cables run from the trigger to the door, with matching colored panels at both ends.
+
+**Secret rooms (W7):**
+- Guaranteed minimum number per sector (procgen invariant)
+- Most are *indicated* (cracked walls, faint visual tells)
+- 1–2 *super-secrets* per sector with no indicator at all
+- Scanner item reveals secrets persistently while held; consumable scan-card variants (Isaac-tarot style) are one-shot reveals
+
+**Interactive prop catalog (W7):**
+
+| Prop | Behavior |
+|------|----------|
+| Pressure plate | Triggers logic on overlap. Both **one-shot** and **hold-release** variants — hold-release stays armed only while pressed (enables 2-plate puzzles). |
+| Conveyor tile | Constant directional movement on standers (player + enemies + projectiles). |
+| Vacuum vent | Pulls player toward it; hazard if reached, can be temporarily blocked. |
+| Fragile floor | Cracks on first step, collapses on second; broken tile leaves a Zelda-style **pit** that persists for the rest of the room. |
+| Terminal | Dual-role: lore readout *and* hackable to activate switches / yield loot. |
+| Locker / container | Some unlocked, some locked; lock variants mirror the full door taxonomy (key, barred, hack). |
+| Breakable crate / object | Hurtbox; despawns on kill. No drop in M2; rare lootable variants in later milestones. |
+| Bed | Decoration only (slice). Future: vessel-specific signature interactions (e.g. Adrenaline refresh) — post-slice. |
+| Camera | Scene-dressing only (slice). Alert/aggro mechanic is post-slice. |
+| Corpse | Decoration; rare lootable variants (small chance of currency / consumable). |
+
+**Room transition (M2 default):** instant teleport at door crossing; player repositions at the matching door on the destination room. Camera pan / fade is polish for later.
+
+**Room shape model (W7) — Isaac × Link to the Past hybrid:**
+
+- One room visible at a time
+- Some rooms are **screen-sized** (camera locked, classic Isaac feel)
+- Other rooms exceed the screen and the camera **follows the player within room bounds** (LttP / LANS feel)
+- Camera **hard-clamps** to room bounds — no soft drift past the wall
+- **Max dimensions:** 2×2 cells default, 3×N permitted for boss arenas / set-pieces
+- **Multi-door per wall** allowed (long walls can have 2+ doors, no diagonal exits)
+- **Hub rooms** (4+ doors / 4-way junctions) allowed
+- Room size is a property of the *template*; content is hand-tuned per template (the generator does not auto-scale enemy count to room size)
+- Sectors have **distinctive room-design languages** — each sector ships its own template pool with its own visual feel
+
+**Roomwide mechanics (W7):**
+- **Slow zones** — time-dilated regions; slow *everything* (player, enemies, projectiles, attack animations). Distinct from Android's *Overclock*, which preserves player speed.
+- **Lights-out rooms** — see *Lights & Power* below.
+- **Gravity flips** — *deferred post-slice.* Likely shape: directional-pull tiles or roomwide low-grav drift; design pass when the Engineering sector is built.
 
 **Clear conditions:** combat → all dead; puzzle → solved; narrative/item/secret/vendor → entry only.
 
@@ -412,6 +745,109 @@ Additional door variants (timer-locked, hazard-gated, factional, etc.) are **wor
 - Boss room icon revealed when player enters an adjacent room
 - Secret rooms NOT shown until found
 - Vendor and mid-boss rooms revealed on first entry
+
+### Lights & Power
+
+Lighting is a real gameplay mechanic, not just art.
+
+**Default ambient progression:**
+- Early/early-mid sectors: most rooms well-lit by default; some *dark rooms* (power off on arrival) exist as exceptions.
+- Later sectors invert the default: lit-well becomes the *exception*, dim becomes the default — darkness creeps in as the game gets scarier.
+
+**No-light fallback** (player in a dark room with no light source):
+- Low visibility nearby, near-zero at distance — **never fully black**.
+- Even unpowered rooms ship with minimal guidance lights to hint at navigation.
+- Some enemies produce or carry their own light — silhouettes/glows visible at distance double as a horror beat **and** a navigation aid.
+
+**Light items** (full integration in W5):
+- **Flashlight** — rechargeable battery; forward-facing cone.
+- **Lantern** — fuel-based; small radial bubble.
+- Lantern *or* fire-based attacks can light environmental torches.
+- Wall lights with switches need *power* (which itself may be a small puzzle to enable).
+
+**Power scope** — both **per-room** (room-local switch / breaker) and **per-sector** (master breaker that lights several rooms when restored) are valid. Sector grids and room-local power can coexist.
+
+**Torch persistence** — per-torch property. Some torches stay lit for the run once ignited; others burn out on a timer. Mix to taste.
+
+**Enemy perception in dark** — every enemy archetype carries a `PerceptionType` tag (`Vision` / `Sound` / `Heat` / `Omniscient` / `Ambient`). Some are blind in the dark, some see fine, some detect by sound or thermal; `Ambient` enemies don't hunt at all and act on timer/proximity. A killed lantern-carrying enemy may drop their lantern as a lootable light source. Per-enemy assignments live in [§ Enemy Roster](#enemy-roster).
+
+### Hazards
+
+Hazards are environmental damage sources. Some are static traps; some are dynamic; some are tactical opportunities.
+
+**Catalog (slice):**
+
+| Hazard | Type | Behavior | Sector lean |
+|--------|------|----------|-------------|
+| Spike trap | Persistent | Always-on contact damage (physical-pierce) | universal |
+| Gas vent | Cycling | Telegraph → emit gas cloud (poison DOT) → cooldown | Medical |
+| Electric floor | Persistent / cycling | Tile-based shock zones; some pulse on/off (electric) | Engineering |
+| Fire jet | Cycling | Telegraph → flame bar → cooldown (fire damage) | Engineering |
+| Vacuum vent / breach | Persistent | Pulls player toward it; sustained exposure = vacuum DOT | Hull |
+| Falling debris | Cycling | Telegraph → drop on tile → impact damage (bash) | Engineering |
+| Fragile floor | Triggered | Crack → collapse → pit persists for rest of room | universal |
+| Damaging laser — toggling | Cycling | Fixed beam; on/off cycle (electric) | Command / Research |
+| Damaging laser — patrolling | Persistent | Beam slides along a track at constant speed | Command / Research |
+| Damaging laser — tracking | Persistent | Beam slowly aims at the player; forces movement | Command / Research |
+
+**Sector tagging:** each hazard has a primary sector(s); templates may pull non-primary hazards on purpose for cross-sector flavor. Tagging is metadata on the hazard definition.
+
+**Damage model:**
+- **Flat damage** is the default
+- **DOT** for occasional hazards (gas, vacuum, bleed)
+- **Never percentage-based**
+
+**DOT stacking:**
+- **Same effect** from multiple sources → *refreshes* (latest source resets duration; magnitude does not stack)
+- **Different effects** stack independently — fire + poison both tick on the same target
+
+**Telegraph rule (slice):** all hazards must telegraph. No gotcha hazards. Cycling hazards have a visible windup + audio cue (~0.5s before activation); always-on hazards are visually distinct from safe terrain.
+
+**Disarm rules:**
+- **Mechanical hazards** (gas vents, fire jets, electric floors, lasers, dart traps) are disarmable via **multiple methods**: hack via terminal, shoot the control box, tool-required (Cutter / Hack tool). Operator's *Console Hack* bypasses some.
+- **Always-on environmental hazards** (spike grates, contact pools, fragile floors, vacuum vents) typically *cannot* be disarmed. The counter is **protection items** (passives, full integration in W5):
+  - `Gas Mask` — gas / poison immunity
+  - `Reinforced Soles` — spike-floor protection
+  - `Hover Jets` — float over floor-based hazards (spikes, fragile tiles, vents)
+- **Permanence:** once disarmed, a trap stays disarmed for the rest of the run. No timer reactivation.
+
+**Hazard tactical use:** the player can intentionally force enemies into hazards via knockback, grapple-pull, or dodge-shove. Hazards damage enemies who wander or are forced in. Some enemies have hazard immunities or partial resistances (e.g. fire imp immune to fire).
+
+### Damage System
+
+Damage is type-tagged at the source and resolved against per-type defenses.
+
+**Damage types — column-set:**
+
+| Category | Types |
+|----------|-------|
+| Physical | slash, bash, pierce |
+| Elemental | fire, electric, poison, cold/cryo |
+| Exotic | vacuum, sonic, psychic/echo |
+
+The full enum is defined in code from day one. The **vertical slice** uses *only* physical + fire + electric + poison for enemies and items; cold / vacuum / sonic / psychic stay reserved for later sectors and Aberrant content. Per-type status effects (cold → chill/freeze, vacuum → suffocation DOT, sonic → stun, psychic → ignore-physical-defenses) are **W5 / W6 territory**.
+
+**Defense layers — order of operations per hit:**
+
+1. **Crit roll** — per-hit base rate (per weapon) + Luck + passives. On success, multiply final damage by the per-weapon crit multiplier.
+2. **Resistance** — per-type **flat per-hit subtraction**. *Resist 2 poison* = subtract 2 from each poison instance applied (min 0). Crits **bypass Resistance**. *Resistance-piercing gear* (passives) reduces an enemy's effective Resistance.
+3. **Immunity** — flat 0 damage from that type. Hard cap; not penetrable.
+4. **Armor (physical-only)** — flat damage pool that absorbs and depletes. Catches all 3 physical sub-types (slash + bash + pierce) but is **ignored** by elementals and exotics. Crits do **not** bypass Armor — but the doubled (or higher) damage chews armor down faster. Armor regenerates only via pickups.
+
+**Critical hits — starting per-weapon table** (all numbers playtest-tunable):
+
+| Weapon | Vessel | Base Crit Rate | Crit Multiplier | Notes |
+|--------|--------|----------------|-----------------|-------|
+| Sword | Clone | 5% | 2.0× | clean baseline |
+| Hammer | Exo | 3% | 3.0× | rare but devastating |
+| Dual-blade | Synthetic | 8% | 1.5× | flurry of mini-crits, lots of rolls |
+| Rapier | Android | 15% | 2.5× | reliable crit + W2 third-thrust positional crit |
+| Claws | Aberrant | 6% | 2.5× | brutal multiplier — gnaws armor down fast on crit |
+| Daggers | (found) | 10% | 2.0× → 3.0× from rear 90° cone | deft + W2 rear-bonus stack |
+
+- **Luck scaling:** +1 Luck → +1% crit rate. Cap +25% from Luck alone; passives can push higher independently.
+- Passives can boost crit rate (additive %) and crit multiplier (additive × on base) independently.
+- **Crit feedback:** larger damage number, distinct color, brief screen flash, +50% hit-stop on crit.
 
 ### Dungeon Generation
 
@@ -432,6 +868,8 @@ Generation lives entirely in `Stationfall.Core`. Godot only instantiates the res
 - No room double-assigned a type
 - Item room reachable from Entry without prior locked-door traversal
 - Layout size within target bounds (room count min/max per sector)
+- **No soft-lock state reachable** — every layout has a verified solvable path to the boss from any state the player could legitimately be in. Sector-spanning puzzles must either have their prerequisite present in the layout or fall back to a non-puzzle alternative path. Layouts that fail this check are rejected and re-rolled. *(W7 rule.)*
+- **Secret rooms ≥ minimum per sector** (W7) — guaranteed minimum count per sector, with the indicated/super-secret ratio respected.
 
 **Core produces:** `DungeonLayout` — pure C# room graph, room types, connections, door types, key placements
 **Godot instantiates:** room scenes, doors, props
@@ -485,17 +923,29 @@ Like Isaac, the game eases newer players in and ramps stakes after early progres
 
 ### Puzzle System
 
-Puzzles exist at the room level. They gate the room's exit or a chest.
+Puzzles exist at **room** scope and **sector** scope.
 
-**Primitives** (full set defined in W7):
-- Switch / pressure plate
+**Slice primitives (W7):**
+- Switch / pressure plate (one-shot or hold-release)
+- Pressure-plate combinations (multi-plate sequences)
+- Enemy-clear gate (the kill-clear barred door)
+- Terminal code entry (code found elsewhere in the dungeon)
+
+**Post-slice primitives** (deferred):
 - Power-node routing
-- Enemy-clear gate
-- Timed sequence
-- Terminal code entry (code found elsewhere in dungeon)
+- Light/laser redirect
+- Item-carry puzzles
+- Timed sequence puzzles
 - Environmental physics (push to plate, redirect beam)
 
-Puzzle state lives in the room's Godot scene. Completion emits a signal the room listens for.
+**Sector-spanning puzzles** — multi-room logic where a hint, code, or item found in one room is used in another.
+- **Frequency:** at least one guaranteed per run.
+- **Persistence:** per-run only — codes you find this run do *not* carry into future runs.
+- **Failure tolerance:** none. The no-soft-lock invariant means the generator must guarantee a solvable path or a non-puzzle alternative.
+
+**Discovered codes log** — when the player finds a code, hint, or puzzle item, it pins to a HUD-accessible log so the player doesn't have to memorize anything.
+
+Puzzle state lives in the room's Godot scene. Completion emits a signal the room listens for. Cross-room puzzle state is owned by the run state (`Stationfall.Core.Runs.RunState`).
 
 ### Narrative & Mystery
 
@@ -537,10 +987,24 @@ Master story document, log subjects, echo timeline, true-ending arc — **W10 ou
 
 ### Save System
 
-- **Run save** — autosaved after each room clear; single slot; deleted on death
-- **Meta save** — JSON file; never deleted; flags, unlocks, shortcuts, mirror upgrades, meta currency
+Three save layers, distinct lifecycles, **no save-scumming**.
 
-JSON format for both. Save serialization is introduced in M3, not M8 — all Core types are designed with serialization as a day-one constraint.
+| Layer | When written | Lifetime | Purpose |
+|-------|--------------|----------|---------|
+| **Meta save** | Auto on **run completion** (death, sector boss kill, true ending) | Persistent across all runs | Narrative flags, vessel unlocks, mirror upgrades, meta currency, collected echoes, difficulty tier |
+| **Hard run save (inter-sector)** | Auto when player enters a *safe zone* between sectors | Per-run; cleared on death or run completion | Run state at the safe zone — player commits to advancing or quitting cleanly |
+| **Quick save** | Manual via Escape menu → *Save and Quit* | Single slot; consumed on Continue | Pause-and-resume only — for stopping mid-room and picking back up later |
+
+**Quick save rules — designed to forbid save-scumming:**
+- One slot. Saving overwrites whatever's there.
+- Loading via *Continue* **consumes** the slot (wiped immediately at load).
+- Selecting *New Run* from the main menu also wipes the quick save.
+- Death never sees the quick save — it was already consumed at load time.
+- Effect: the quick save is a *bookmark*, not a checkpoint. Cannot be used to retry a fight.
+
+**Safe zones** — short rooms between sectors where the player can voluntarily stop, save, and quit. Slice scope is M9-deferred; placeholder presentation is fine until then.
+
+JSON format for all three. Save serialization is introduced in **M3**, not M8 — all Core types are designed with serialization as a day-one constraint.
 
 **Schema versioning strategy:**
 - **Pre-1.0 (development):** every save file has a `schemaVersion` field. On mismatch, the save is wiped with a warning shown to the player. Wipes are expected during development.

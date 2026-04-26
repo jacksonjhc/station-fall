@@ -27,11 +27,11 @@ A workshop need not finish in one session. "Partial completion" is fine — part
 |---|-------|--------|-------|
 | W1 | Vessels & Signature Abilities | Decisions promoted | M1 |
 | W2 | Combat Feel & Weapon Patterns | Decisions promoted | M1, M3.5 |
-| W3 | Enemy Roster & Archetype Detail | Not started | M3, M9 |
+| W3 | Enemy Roster & Archetype Detail | Decisions promoted | M3, M9 |
 | W4 | Bosses & Mid-Bosses | Not started | M8, M9 |
 | W5 | Items: Passives, Tools, Consumables | Not started | M6, M7, M9 |
 | W6 | Synergies | Not started | M7 |
-| W7 | Dungeon Elements & Mechanics | Not started | M2, M5 |
+| W7 | Dungeon Elements & Mechanics | Decisions promoted | M2, M5 |
 | W8 | Sector Themes (Sector 1 deep dive) | Not started | M9 |
 | W9 | Difficulty Tier Mechanics | Not started | M8 |
 | W10 | Narrative Architecture (incl. meta-currency name) | Not started | M9 |
@@ -144,25 +144,56 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 
 ## W3 — Enemy Roster & Archetype Detail
 
-**Status:** Not started
+**Status:** Decisions promoted
 **Gates:** M3 (first enemy), M9 (full Sector 1 roster)
-**Pre-read:** [PLANNING.md § Combat (enemy archetypes)](PLANNING.md#combat--real-time-action)
+**Pre-read:** [PLANNING.md § Combat (enemy archetypes)](PLANNING.md#combat--real-time-action), [PLANNING.md § Enemy Roster](PLANNING.md#enemy-roster)
 
-**Output owed:**
-- Full enemy roster: ~3–5 enemies per sector × 5 sectors = ~15–25 enemies
-- For Sector 1 specifically: 4–5 fully-designed enemies (the slice needs them)
-- Per enemy: name, archetype, HP, attack power, move speed, attack patterns with telegraph, drop table, sector(s) they appear in, behavior tells, counter-strategy
-- Elite variants: which base enemies have elites, what changes
-- Aggro/sensor rules per enemy (line-of-sight required? aggro range?)
+**Output owed (all delivered — see PLANNING.md § Enemy Roster for full spec):**
+- Sector 1 full roster: 6 enemies (scope-up from W3's stated 4–5 — Corrupted Medbot is the most expensive; flagged as deferrable if M9 schedule slips)
+- Per enemy: name, archetype, HP, attack power, move speed, attack patterns with frame data, behavior tells, counter-strategy, drops, resistances, `PerceptionType`, aggro/LOS rules, dark-room behavior
+- Elite rule + 4 specific Sector 1 elite variants (one pattern mutation each)
+- Durable principles (telegraph floor, contact-damage default, hazards-damage-enemies, Sector 1 resistance ceiling, elite rule)
+- `PerceptionType` enum (`Vision` / `Sound` / `Heat` / `Omniscient` / `Ambient`)
+- Sectors 2–5 sketch roster (working names + intents only; full design deferred)
+- Recommended Sector 1 encounter order for tier-0 generator weighting
 
-**Prompt questions:**
-- What's the "starter enemy" the player meets in the first 30 seconds — what does it teach?
-- Is there an enemy that exists primarily as a *threat to read*, not to defeat (a roaming hazard)?
-- Should some enemies be sector-exclusive vs. generalists?
-- Horror enemies: any enemy whose primary design goal is *atmosphere*, not challenge?
-- What does the elite designation mechanically change — just stats, or new attack patterns?
+**Decisions (summary — full spec lives in PLANNING.md):**
 
-**Decisions:** *(filled in during workshop)*
+1. **Six durable principles.** Telegraph floor ≥ 14 frames at 60fps (never erodes for elites); contact damage off by default; hazards damage enemies; Sector 1 resistance ceiling = 1 (use Immunity directly when meant); elite rule = modest stat scaling + exactly one readable pattern mutation; numbers ship playtest-tunable.
+
+2. **`PerceptionType` enum.** `Vision` / `Sound` / `Heat` / `Omniscient` / `Ambient`. Sector 1 leans `Vision` so darkness matters; `Sound` on Suture Mites makes dark rooms genuinely dangerous without overusing the tag.
+
+3. **Sector 1 roster (6 enemies, 5 archetypes).** Twitching Patient (melee rusher, starter) · Drip Drone (ranged shooter) · Convulsing Body (ambient hazard creature) · Suture Mite (swarm) · Bio-Seal Orderly (shield bearer) · Corrupted Medbot (status applier — scope-up, deferrable).
+
+4. **Starter enemy = Twitching Patient.** Teaches the entire combat loop in 30 seconds: notice → telegraph → dodge → punish recovery. 14-frame windup, 22-frame recovery, 1 dmg slash, no contact damage, no resistances.
+
+5. **Bio-Seal Orderly Brace as resistance model, not binary block.** Frontal slash/pierce −1 (resistance); frontal bash full; **heavy combo finisher** (any type) ignores resistance; rear/side full; hazards ignore facing; **electric disables brace 1.5s**. Synthetic and Android (no Heavy in their default weapon's combo) are forced to flank, electric, or hazard — strong vessel-distinct interaction without bespoke per-vessel logic.
+
+6. **Suture Mite windup raised to 16 frames** (from initial 12) to satisfy the telegraph floor in swarm context — overlapping 12-frame windups across 3–5 mites made dodging unreliable. Pierce resistance dropped (was 1) so Android's Rapier and Daggers aren't punished on first swarm fight.
+
+7. **Elite rule.** Modest stat scaling + one pattern mutation (never faster telegraphs). Sector 1 elites: Redline Patient (second stumble-lunge after miss) · Dose Drone (two-shot burst with retarget) · Containment Orderly (3-hit shockwave; electric still disables) · Overdose Medbot (Double Dose dart sequence + extended bleed). Suture Mites and Convulsing Bodies don't get elites — swarms scale via pack size, ambient hazards via density and pulse timing.
+
+8. **Aberrant Echo Surge interaction with Containment Orderly (HP 6) noted as deliberate.** A 6+ Echo Surge does 5 damage to elites, leaving Containment at 1 HP. Kept as-is — "elites survive your panic button" reads as design, not bug. Revisit after playtest.
+
+9. **Recommended Sector 1 encounter order for tier-0 generator weighting.** Tone-setting room → solo Twitching Patient → staggered pair → Drip Drone with cover → Convulsing Body + Medbot (hazard + debuff) → Mite pack OR Orderly (graduation fight).
+
+10. **Sectors 2–5 sketch.** 5-enemy outlines per sector reserve design space and signal damage-type/mechanic introductions (Engineering = fire/electric, Research = psychic/anomaly, Command = security/control, Core = reality-distortion). Working names only — nothing locked.
+
+**Items / systems implicitly created by W3** (need IDs / types when their content pipelines land):
+
+- Enemy `.tres` definition schema covering: archetype, stats, perception, frame data, drops, resistances, elite link
+- `PerceptionType` enum (system-level)
+- Slow debuff (Sedative Dart) and Bleed debuff (Emergency Sutures) — first concrete uses of the status-effect system
+- Anticoagulant consumable (cleanse Bleed) — handed to W5
+- Slingshot ammo as a drop type — handed to W5
+
+**Handoffs to other workshops:**
+
+- **W4 (Bosses & Mid-Bosses):** Sector 1 mid-boss and boss must respect the durable principles (telegraph floor, no faster-than-base elites). The mid-boss likely escalates one Sector 1 archetype; the sector boss should introduce an attack the roster doesn't telegraph yet.
+- **W5 (Items, Tools, Consumables):** Owns full pool integration of anticoagulant consumable, slingshot ammo as drop, and any future enemy-targeted items (e.g., shield-piercer passive). Drop table tuning happens here once item rarity tiers are set.
+- **W6 (Synergies):** Bleed + Poison stack from different sources is the first cross-source DOT interaction in the slice — flag it for synergy design (Aberrant's Bleed via Claws + Medbot's Bleed should not magnitude-stack since same effect refreshes per W7's DOT rule).
+- **W8 (Sector Themes):** Sector 1 deep-dive uses this roster as fixed; lighting and audio palettes are designed *around* enemy `PerceptionType` (most-`Vision` makes darkness scary; Mites' `Sound` makes silence valuable).
+- **W9 (Difficulty Tier Mechanics):** Higher tiers can enable elite spawns, raise elite damage from +0 to +1, and shift the encounter weighting away from solo-rusher rooms toward swarm/orderly graduation fights earlier in the run.
 
 ---
 
@@ -244,25 +275,51 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 
 ## W7 — Dungeon Elements & Mechanics
 
-**Status:** Not started
+**Status:** Decisions promoted
 **Gates:** M2 (basic doors + props), M5 (full primitive set for procgen)
-**Pre-read:** [PLANNING.md § Room System](PLANNING.md#room-system), [PLANNING.md § Puzzle System](PLANNING.md#puzzle-system)
+**Pre-read:** [PLANNING.md § Room System](PLANNING.md#room-system), [PLANNING.md § Hazards](PLANNING.md#hazards), [PLANNING.md § Damage System](PLANNING.md#damage-system), [PLANNING.md § Puzzle System](PLANNING.md#puzzle-system), [PLANNING.md § Save System](PLANNING.md#save-system), [PLANNING.md § Lights & Power](PLANNING.md#lights--power)
 
-**Output owed:**
-- Full door variant list (open, enemy-locked, key-locked, condition-locked, secret + extras: timer, hazard-gated, etc.)
-- Hazard catalog: spike traps, gas, electric floors, vacuum breach, fire jets, falling debris — per hazard, the rules and damage model
-- Interactive prop catalog: terminals, lockers, vending machines, breakable crates, chests, save points (do we have any?), beds (Adrenaline Rush refresh?), corpses (lootable?), cameras (alert mechanic?), pressure plates
-- Puzzle primitive set (W7 expands the [PLANNING.md § Puzzle System](PLANNING.md#puzzle-system) starter list)
-- Secret-room reveal rules: what discloses them? Adjacent presence + scanner? Breakable wall? Specific tool?
-- Per-element: which sectors it appears in (some hazards are sector-exclusive)
+**Decisions (summary — full spec lives in PLANNING.md):**
 
-**Prompt questions:**
-- Should environmental hazards damage enemies too (use them tactically), or player-only?
-- How many puzzle types per sector? Sector 1 might have 1–2 distinctive puzzle types.
-- Are there *roomwide* mechanics — gravity flips, lights-out, slow-time zones?
-- Should some doors require *combat solutions* (e.g., kill specific enemy to unlock)?
+1. **Door taxonomy.** Three categories — Basic (Open / Closed visual states), Locked (generic-keys consumed; unique-keys HUD-pinned, sector-scoped, color-coded; rare Skeleton Key permanent), Barred (kill-clear locks behind player; switch / lever / hack / one-way variants). Secret doors as a fourth class with four reveal methods (cracked-wall destructible / no-indicator super-secret / Scanner / triggered terminal). Sticky-open reset rule; contraption-tied doors can be intentionally re-closed.
 
-**Decisions:** *(filled in during workshop)*
+2. **Room shape — Isaac × LttP hybrid.** One room visible at a time. Some rooms screen-sized (camera locked); others larger with camera follow inside hard-clamped room bounds. Max 2×2 default, 3×N for boss arenas. Multi-doors per wall allowed; no diagonals. Hub rooms allowed. Sectors get distinctive room-design languages with their own template pools. Room size is a template property; content is hand-tuned, not auto-scaled.
+
+3. **Hazards.** Catalog of ~10 hazard types (spike, gas vent, electric floor, fire jet, vacuum vent, falling debris, fragile floor, three laser sub-types: toggling / patrolling / tracking). Damage model is flat-by-default with occasional DOT (never percentage). DOT stacking: same effect refreshes (latest source wins duration); different effects stack. **Always-telegraph rule** — no gotcha hazards. Hazards damage enemies too; tactical use via knockback/grapple is encouraged. Mechanical hazards disarmable via multiple methods (hack, shoot control box, tool); always-on environmental hazards rely on protection items (Gas Mask, Reinforced Soles, Hover Jets). Once disarmed, permanent for the run.
+
+4. **Damage system.** 10 damage types: physical (slash, bash, pierce), elemental (fire, electric, poison, cold/cryo), exotic (vacuum, sonic, psychic/echo). **Slice uses only physical + fire + electric + poison.** Defense order: Crit → Resistance (per-type flat subtraction; resist-piercing gear exists) → Immunity (hard 0) → **Armor (physical-only)** flat damage pool that absorbs slash+bash+pierce but is ignored by elementals. Crits bypass Resistance, not Armor.
+
+5. **Critical hits.** Per-weapon base rate and per-weapon multiplier. Starting table locked in PLANNING (Sword 5%/2.0×, Hammer 3%/3.0×, Dual-blade 8%/1.5×, Rapier 15%/2.5×, Claws 6%/2.5×, Daggers 10%/2.0× → 3.0× from rear). Luck +1 = +1% crit (cap +25% from Luck alone; passives can push higher). Crit feedback: bigger number, distinct color, brief screen flash, +50% hit-stop.
+
+6. **Lights & Power.** Default ambient progresses by sector — early sectors mostly-lit with dark-room exceptions, later sectors invert to mostly-dim with powered exceptions. No-light fallback is *low* visibility (never fully black) with minimal guidance lights and enemy-carried light sources. Light items: Flashlight (battery, cone) + Lantern (fuel, radial) + ignitable wall torches (per-torch persistence rule). Power scope is both per-room and per-sector. Enemy perception in the dark is a per-archetype tag (vision / sound / heat / omniscient) — handed to W3 for full spec.
+
+7. **Saves — three layers, no save-scumming.** Meta save auto on run completion (persistent). Hard run save auto on inter-sector safe zones (per-run). Quick save manual via Escape → Save and Quit, single slot, consumed on Continue, wiped if New Run is started, never seen by death.
+
+8. **Puzzles.** Slice primitives: switch / pressure plate (one-shot or hold-release), pressure-plate combinations, enemy-clear gate, terminal code entry. Post-slice primitives (power routing, light redirect, item-carry, timed sequence) deferred. Sector-spanning puzzles guaranteed at least once per run, per-run only (no cross-run carry). HUD-accessible **discovered codes log** so the player never has to memorize. **No-soft-lock invariant** added to the procgen rules.
+
+9. **Roomwide mechanics.** Slow zones in (time-dilated, slows everything). Lights-out in. **Gravity flips deferred post-slice.**
+
+10. **Secret rooms.** Guaranteed minimum count per sector. Mostly indicated (cracked walls); 1–2 super-secrets per sector with no indicator. Scanner persistent while held + consumable scan-card variants.
+
+11. **Numbers are playtest-tunable.** All hazard damage values, crit rates, light-source durations, slow-zone strengths ship as configurable data — real balance happens at playtest.
+
+**Items/systems implicitly created by W7** (need IDs / types when their content pipelines land):
+
+- `Skeleton Key` (passive, rare; run-permanent generic-lock bypass)
+- `Gas Mask`, `Reinforced Soles`, `Hover Jets` (passive *protection items* — pair with the resistance system)
+- `Flashlight`, `Lantern` (active light tools)
+- `Scanner` (active tool — persistent reveal) + scan-card consumables (one-shot reveal)
+- `Cutter` / `Hack tool` (active tools — disarm methods)
+- Damage-type enum with 10 entries (system-level)
+- Per-archetype `PerceptionType` enum on enemies (handed to W3)
+
+**Handoffs to other workshops:**
+
+- **W3 (Enemy Roster):** Each enemy gets a `PerceptionType` tag (vision / sound / heat / omniscient) and per-type Resistance/Immunity values. Some enemies need light to detect the player; some carry their own light.
+- **W5 (Items, Tools, Consumables):** Owns full pool integration of `Skeleton Key`, `Gas Mask`, `Reinforced Soles`, `Hover Jets`, `Flashlight`, `Lantern`, `Scanner`, `Cutter`, `Hack tool`, scan-card consumables, key-drop-rate passives, crit-rate / crit-multiplier passives, resistance-piercing gear.
+- **W6 (Synergies):** Damage-type interactions are now load-bearing for synergy design (fire + chill / poison + bleed / electric stun chains). Build identities should incorporate damage typing.
+- **W8 (Sector Themes):** Each sector picks its hazard set, lighting palette (lit-default vs dim-default), and which template-pool size mix it leans on (mostly screen-sized vs mostly large rooms).
+- **W9 (Difficulty Tier Mechanics):** Higher tiers can shift the lit/dim balance, increase hazard density, restrict disarm methods, or buff enemy resistance values.
 
 ---
 

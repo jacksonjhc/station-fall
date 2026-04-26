@@ -1,0 +1,146 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Dungeon/RoomController.cs" id="1_room"]
+[ext_resource type="Script" path="res://Scripts/Dungeon/DoorNode.cs" id="2_door"]
+[ext_resource type="Script" path="res://Scripts/Dungeon/BreakableCrateNode.cs" id="3_crate"]
+[ext_resource type="Script" path="res://Scripts/Combat/HurtboxComponent.cs" id="4_hurt"]
+
+[sub_resource type="RectangleShape2D" id="shape_door"]
+size = Vector2(64, 64)
+
+[sub_resource type="RectangleShape2D" id="shape_crate_hurt"]
+size = Vector2(44, 44)
+
+[sub_resource type="RectangleShape2D" id="shape_crate_body"]
+size = Vector2(40, 40)
+
+[sub_resource type="RectangleShape2D" id="shape_wall_h"]
+size = Vector2(1280, 32)
+
+[sub_resource type="RectangleShape2D" id="shape_wall_v_full"]
+size = Vector2(32, 720)
+
+[sub_resource type="RectangleShape2D" id="shape_wall_v_split"]
+size = Vector2(32, 328)
+
+[sub_resource type="RectangleShape2D" id="shape_door_seal"]
+size = Vector2(64, 64)
+
+[node name="FarRoom" type="Node2D"]
+script = ExtResource("1_room")
+RoomId = "far_room"
+
+[node name="Floor" type="ColorRect" parent="."]
+offset_left = -640.0
+offset_top = -360.0
+offset_right = 640.0
+offset_bottom = 360.0
+color = Color(0.16, 0.12, 0.18, 1)
+mouse_filter = 2
+
+[node name="WallLabel" type="Label" parent="."]
+offset_left = -120.0
+offset_top = -340.0
+offset_right = 120.0
+offset_bottom = -310.0
+text = "FAR ROOM"
+horizontal_alignment = 1
+
+[node name="WallTop" type="StaticBody2D" parent="."]
+position = Vector2(0, -376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallTop"]
+shape = SubResource("shape_wall_h")
+
+[node name="WallBottom" type="StaticBody2D" parent="."]
+position = Vector2(0, 376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallBottom"]
+shape = SubResource("shape_wall_h")
+
+[node name="WallRight" type="StaticBody2D" parent="."]
+position = Vector2(656, 0)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallRight"]
+shape = SubResource("shape_wall_v_full")
+
+[node name="WallLeftUpper" type="StaticBody2D" parent="."]
+position = Vector2(-656, -196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallLeftUpper"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="WallLeftLower" type="StaticBody2D" parent="."]
+position = Vector2(-656, 196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallLeftLower"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="DoorWest" type="Area2D" parent="."]
+position = Vector2(-600, 0)
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("2_door")
+DirectionInt = 3
+SealShapePath = NodePath("../DoorWestSeal/Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="DoorWest"]
+shape = SubResource("shape_door")
+
+[node name="Open" type="ColorRect" parent="DoorWest"]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.4, 0.5, 0.55, 0.8)
+mouse_filter = 2
+
+[node name="Seal" type="ColorRect" parent="DoorWest"]
+visible = false
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.85, 0.30, 0.30, 1)
+mouse_filter = 2
+
+[node name="DoorWestSeal" type="StaticBody2D" parent="."]
+position = Vector2(-600, 0)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="DoorWestSeal"]
+shape = SubResource("shape_door_seal")
+disabled = true
+
+[node name="Crate" type="Node2D" parent="."]
+position = Vector2(200, 0)
+script = ExtResource("3_crate")
+EntityId = "main_crate"
+Hp = 2
+
+[node name="Sprite" type="ColorRect" parent="Crate"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.65, 0.50, 0.25, 1)
+mouse_filter = 2
+
+[node name="Hurtbox" type="Area2D" parent="Crate"]
+collision_layer = 2
+collision_mask = 4
+script = ExtResource("4_hurt")
+
+[node name="HurtShape" type="CollisionShape2D" parent="Crate/Hurtbox"]
+shape = SubResource("shape_crate_hurt")
+
+[node name="Body" type="StaticBody2D" parent="Crate"]
+collision_layer = 16
+collision_mask = 0
+[node name="BodyShape" type="CollisionShape2D" parent="Crate/Body"]
+shape = SubResource("shape_crate_body")

@@ -1,3 +1,5 @@
+using Stationfall.Core.Combat;
+
 namespace Stationfall.Core.Entities;
 
 public record EntityStats(
@@ -18,4 +20,10 @@ public record EntityStats(
     public EntityStats WithMaxHp(int maxHp) => this with { MaxHp = Math.Max(0, maxHp), Hp = Math.Clamp(Hp, 0, Math.Max(0, maxHp)) };
 
     public float HpRatio => MaxHp <= 0 ? 0f : (float)Hp / MaxHp;
+
+    public EntityStats ApplyDamage(DamageResult result) => this with
+    {
+        Hp = Math.Clamp(Hp - result.Amount, 0, MaxHp),
+        Armor = Math.Max(0, Armor - result.ArmorAbsorbed),
+    };
 }
