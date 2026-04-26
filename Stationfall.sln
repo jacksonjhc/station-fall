@@ -1,0 +1,38 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stationfall.Godot", "Stationfall.Godot.csproj", "{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stationfall.Core", "src\Stationfall.Core\Stationfall.Core.csproj", "{419EB8A4-CD4A-4E29-8D77-49EF1B474960}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stationfall.Tests", "src\Stationfall.Tests\Stationfall.Tests.csproj", "{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{DAAB1711-7FFA-4EB6-933F-8C3AFC0B45EC}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{419EB8A4-CD4A-4E29-8D77-49EF1B474960}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{419EB8A4-CD4A-4E29-8D77-49EF1B474960}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{419EB8A4-CD4A-4E29-8D77-49EF1B474960}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{419EB8A4-CD4A-4E29-8D77-49EF1B474960}.ExportDebug|Any CPU.Build.0 = Debug|Any CPU
+		{419EB8A4-CD4A-4E29-8D77-49EF1B474960}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{419EB8A4-CD4A-4E29-8D77-49EF1B474960}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
+		{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}.ExportDebug|Any CPU.Build.0 = Debug|Any CPU
+		{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{76BB2B43-B689-40AA-8C10-2D50E16F0EE1}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
