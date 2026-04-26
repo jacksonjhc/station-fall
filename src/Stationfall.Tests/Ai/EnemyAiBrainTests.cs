@@ -27,7 +27,9 @@ public class EnemyAiBrainTests
     [Fact]
     public void Idle_DoesNotAcquire_WhenOutsideAggroRange()
     {
-        var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, Sees(200f), nowSeconds: 0, DtSixtyHz, Cfg);
+        // Use a config-relative distance so this test doesn't break when AggroRangePx
+        // is retuned for play-scale (which it has been, repeatedly).
+        var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, Sees(Cfg.AggroRangePx + 50f), nowSeconds: 0, DtSixtyHz, Cfg);
         Assert.Equal(AiState.Idle, s.Phase);
     }
 

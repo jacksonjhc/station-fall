@@ -107,13 +107,16 @@ public partial class DungeonRoot : Node2D
         // already triggered, a crate already destroyed).
         RestoreRoom(roomId, instance);
 
-        instance.OnPlayerEntered();
-
-        // Re-apply the persisted clear status. OnPlayerEntered just put a
-        // RequiresClear room into Active; if it was cleared on a previous
-        // visit, push it back to Cleared so doors unseal again.
+        // Pre-apply persisted clear status BEFORE OnPlayerEntered. Otherwise
+        // a freshly instantiated room briefly transitions Unexplored→Active
+        // during OnPlayerEntered, firing StateChanged(Active) — which wakes
+        // content spawners (EnemySpawner) that should stay dormant in a
+        // previously-cleared room. With this set first, OnPlayerEntered sees
+        // Cleared and returns early; doors update via the Cleared signal.
         if (_runState.Dungeon.IsRoomCleared(roomId) && !instance.IsCleared())
             instance.Clear();
+
+        instance.OnPlayerEntered();
 
         if (_runState.Dungeon.VisitedRoomIds.Add(roomId))
         {

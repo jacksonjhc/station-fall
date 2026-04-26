@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://8rxctwauwwuw" path="res://Scripts/Dungeon/DungeonRoot.cs" id="1_root"]
 [ext_resource type="Script" uid="uid://dmfpvxtsuhpr4" path="res://Scripts/Player/PlayerController.cs" id="2_player"]
 [ext_resource type="Script" uid="uid://dor6yrfb31kou" path="res://Scripts/Combat/HitboxComponent.cs" id="3_hit"]
+[ext_resource type="Script" path="res://Scripts/Combat/HurtboxComponent.cs" id="7_hurt"]
 [ext_resource type="Script" uid="uid://b8ctgsmnfkgha" path="res://Scripts/UI/HealthBar.cs" id="4_hp"]
 [ext_resource type="Script" uid="uid://b2x6frj06i70t" path="res://Scripts/UI/Minimap.cs" id="5_map"]
 [ext_resource type="Script" uid="uid://cfksvw3r1c7vm" path="res://Scripts/Debug/DebugOverlay.cs" id="6_debug"]
@@ -11,10 +12,13 @@
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/WestHall.tscn" id="scene_west"]
 
 [sub_resource type="RectangleShape2D" id="shape_player_body"]
-size = Vector2(28, 28)
+size = Vector2(44, 44)
 
 [sub_resource type="RectangleShape2D" id="shape_player_attack"]
-size = Vector2(40, 32)
+size = Vector2(64, 40)
+
+[sub_resource type="RectangleShape2D" id="shape_player_hurt"]
+size = Vector2(44, 44)
 
 [node name="Dungeon" type="Node2D" unique_id=748092679]
 script = ExtResource("1_root")
@@ -33,14 +37,15 @@ color = Color(0.04, 0.05, 0.07, 1)
 [node name="RoomSlot" type="Node2D" parent="." unique_id=1440798529]
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1863678489 groups=["player"]]
-collision_mask = 16
+collision_layer = 1
+collision_mask = 80
 script = ExtResource("2_player")
 
 [node name="Visual" type="ColorRect" parent="Player" unique_id=263969108]
-offset_left = -14.0
-offset_top = -14.0
-offset_right = 14.0
-offset_bottom = 14.0
+offset_left = -22.0
+offset_top = -22.0
+offset_right = 22.0
+offset_bottom = 22.0
 mouse_filter = 2
 color = Color(0.45, 0.65, 0.95, 1)
 
@@ -48,7 +53,7 @@ color = Color(0.45, 0.65, 0.95, 1)
 shape = SubResource("shape_player_body")
 
 [node name="AttackHitbox" type="Area2D" parent="Player" unique_id=858316137]
-position = Vector2(20, 0)
+position = Vector2(30, 0)
 collision_layer = 4
 collision_mask = 2
 monitoring = false
@@ -61,7 +66,15 @@ disabled = true
 [node name="Visual" type="Polygon2D" parent="Player/AttackHitbox" unique_id=1932008191]
 visible = false
 color = Color(1, 0.85, 0.3, 0.7)
-polygon = PackedVector2Array(-20, -16, 20, -16, 20, 16, -20, 16)
+polygon = PackedVector2Array(-32, -20, 32, -20, 32, 20, -32, 20)
+
+[node name="Hurtbox" type="Area2D" parent="Player" unique_id=4029104461]
+collision_layer = 128
+collision_mask = 0
+script = ExtResource("7_hurt")
+
+[node name="HurtShape" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=4029104462]
+shape = SubResource("shape_player_hurt")
 
 [node name="Camera" type="Camera2D" parent="Player" unique_id=1109074760]
 position_smoothing_enabled = true

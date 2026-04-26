@@ -1,14 +1,12 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Dungeon/RoomController.cs" id="1_room"]
 [ext_resource type="Script" path="res://Scripts/Dungeon/DoorNode.cs" id="2_door"]
-[ext_resource type="Script" path="res://Scripts/Dungeon/PressurePlateNode.cs" id="3_plate"]
+[ext_resource type="Script" path="res://Scripts/Enemies/EnemySpawner.cs" id="3_spawner"]
+[ext_resource type="Resource" path="res://Assets/Data/Enemies/twitching_patient.tres" id="4_patient"]
 
 [sub_resource type="RectangleShape2D" id="shape_door"]
 size = Vector2(64, 64)
-
-[sub_resource type="RectangleShape2D" id="shape_plate"]
-size = Vector2(56, 56)
 
 [sub_resource type="RectangleShape2D" id="shape_wall_h"]
 size = Vector2(1280, 32)
@@ -152,27 +150,14 @@ collision_mask = 0
 [node name="Shape" type="CollisionShape2D" parent="DoorEastSeal"]
 shape = SubResource("shape_door_seal")
 
-[node name="PressurePlate" type="Area2D" parent="."]
-collision_layer = 32
-collision_mask = 1
-script = ExtResource("3_plate")
-EntityId = "main_plate"
+[node name="Spawner" type="Node2D" parent="."]
+script = ExtResource("3_spawner")
+Definition = ExtResource("4_patient")
+RoomControllerPath = NodePath("..")
+SpawnMarkersParentPath = NodePath(".")
 
-[node name="PlateShape" type="CollisionShape2D" parent="PressurePlate"]
-shape = SubResource("shape_plate")
+[node name="SpawnA" type="Marker2D" parent="Spawner"]
+position = Vector2(120, -120)
 
-[node name="Pad" type="ColorRect" parent="PressurePlate"]
-offset_left = -28.0
-offset_top = -28.0
-offset_right = 28.0
-offset_bottom = 28.0
-color = Color(0.55, 0.55, 0.20, 1)
-mouse_filter = 2
-
-[node name="HintLabel" type="Label" parent="PressurePlate"]
-offset_left = -160.0
-offset_top = 32.0
-offset_right = 160.0
-offset_bottom = 60.0
-text = "stand here to clear"
-horizontal_alignment = 1
+[node name="SpawnB" type="Marker2D" parent="Spawner"]
+position = Vector2(220, 120)

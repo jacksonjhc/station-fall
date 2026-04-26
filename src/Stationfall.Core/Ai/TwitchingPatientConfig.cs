@@ -8,10 +8,13 @@ public record TwitchingPatientConfig(
     float IdleMoveSpeedPxPerSec = 35f,
     float ChaseMoveSpeedPxPerSec = 75f,
     float LungeSpeedPxPerSec = 180f,
-    float AggroRangePx = 160f,
-    // Lunge length per W3. The brain treats this as the melee threshold —
-    // the Patient commits to a lunge when the player is within reach.
-    float MeleeAttackRangePx = 44f,
+    // Bumped from W3's 160 after Day 3 playtest — at the play-scale character
+    // size (44 px), 160 was "almost on top of them before they start moving."
+    float AggroRangePx = 280f,
+    // Bumped from W3's 44 to match the player's larger attack reach. The brain
+    // uses this as the melee threshold — the Patient commits when the player
+    // is within "they could hit me" range.
+    float MeleeAttackRangePx = 60f,
     // Frames @ 60fps. IV Lunge: long recovery is the punish window per W3.
     int LungeWindupFrames = 14,
     int LungeActiveFrames = 8,

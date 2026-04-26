@@ -24,6 +24,7 @@ public partial class PlayerController : CharacterBody2D
     [Signal] public delegate void StateChangedEventHandler(int state);
 
     [Export] public NodePath AttackHitboxPath { get; set; } = "AttackHitbox";
+    [Export] public NodePath HurtboxPath { get; set; } = "Hurtbox";
 
     public EntityStats Stats { get; private set; } = PlayerVessel.CreateClone().BaseStats;
     public DodgeProfile DodgeProfile { get; private set; } = DodgeProfile.Roll;
@@ -43,6 +44,7 @@ public partial class PlayerController : CharacterBody2D
     private bool _comboBuffered;
     private bool _attackHasHit;
     private HitboxComponent? _attackHitbox;
+    private HurtboxComponent? _hurtbox;
 
     public override void _Ready()
     {
@@ -58,6 +60,14 @@ public partial class PlayerController : CharacterBody2D
             _attackHitbox.SetActive(false);
             _attackHitbox.Owner2D = this;
             _attackHitbox.HitLanded += (_, _, _, _) => NotifyHitLanded();
+        }
+
+        _hurtbox = GetNodeOrNull<HurtboxComponent>(HurtboxPath);
+        if (_hurtbox != null)
+        {
+            _hurtbox.Owner2D = this;
+            _hurtbox.GetStatsProvider = () => Stats;
+            _hurtbox.OnDamage = (result, _) => TakeDamage(result);
         }
 
         EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
@@ -236,6 +246,9 @@ public partial class PlayerController : CharacterBody2D
     public void TakeDamage(DamageResult result)
     {
         if (GodMode || State == PlayerState.Dead) return;
+        // Dodge i-frames eat the hit entirely. Source: Player feedback model — the
+        // dodge IS the defensive option; landing iframes is the reward.
+        if (HasIFramesNow()) return;
         if (result.Amount <= 0 && result.ArmorAbsorbed <= 0) return;
 
         Stats = Stats.ApplyDamage(result);
