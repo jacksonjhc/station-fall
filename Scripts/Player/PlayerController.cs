@@ -27,7 +27,12 @@ public partial class PlayerController : CharacterBody2D
     [Export] public NodePath HurtboxPath { get; set; } = "Hurtbox";
     [Export] public NodePath VisualPath { get; set; } = "Visual";
 
-    public EntityStats Stats { get; private set; } = PlayerVessel.CreateClone().BaseStats;
+    // Vessel defaults to Clone for the M1 sandbox scene (BootstrapRoot has no
+    // RunState to inject from). DungeonRoot calls Configure() with the vessel
+    // off RunState before reading Stats, so a real run uses whatever vessel
+    // the player picked at vessel-select.
+    public PlayerVessel Vessel { get; private set; } = PlayerVessel.CreateClone();
+    public EntityStats Stats { get; private set; }
     public DodgeProfile DodgeProfile { get; private set; } = DodgeProfile.Roll;
     public WeaponDefinition Weapon { get; private set; } = WeaponDefinition.Sword;
     public AdrenalineRushConfig SignatureConfig { get; private set; } = AdrenalineRushConfig.Default;
@@ -48,13 +53,18 @@ public partial class PlayerController : CharacterBody2D
     private HurtboxComponent? _hurtbox;
     private Node2D? _visual;
 
+    public PlayerController()
+    {
+        // Field initializers populate Vessel; mirror its stats so Stats is
+        // non-null at construction time (hurtbox stats provider may be queried
+        // before _Ready in some edge orderings). _Ready calls ApplyVessel()
+        // which re-runs this assignment.
+        Stats = Vessel.BaseStats;
+    }
+
     public override void _Ready()
     {
-        var vessel = PlayerVessel.CreateClone();
-        Stats = vessel.BaseStats;
-        DodgeProfile = vessel.DodgeProfile;
-        Weapon = vessel.Weapon;
-        SignatureConfig = vessel.SignatureConfig;
+        ApplyVessel();
 
         _attackHitbox = GetNodeOrNull<HitboxComponent>(AttackHitboxPath);
         if (_attackHitbox != null)
@@ -76,6 +86,24 @@ public partial class PlayerController : CharacterBody2D
         ApplyVisualFacing();
 
         EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
+    }
+
+    // Swap to a different vessel post-_Ready (used by DungeonRoot once it has
+    // resolved RunState.Vessel). Re-applies stats and re-emits HealthChanged
+    // so HUD subscribers update; safe to call repeatedly.
+    public void Configure(PlayerVessel vessel)
+    {
+        Vessel = vessel;
+        ApplyVessel();
+        EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
+    }
+
+    private void ApplyVessel()
+    {
+        Stats = Vessel.BaseStats;
+        DodgeProfile = Vessel.DodgeProfile;
+        Weapon = Vessel.Weapon;
+        SignatureConfig = Vessel.SignatureConfig;
     }
 
     // Kenney top-down-shooter sprites are authored facing right (+X) at rotation 0,

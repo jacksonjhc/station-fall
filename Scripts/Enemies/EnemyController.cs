@@ -12,15 +12,8 @@ namespace Stationfall.Godot.Enemies;
 // telegraph, free on death). All rules live in Core; this script is the thin
 // "Godot displays" half of the architecture rule.
 //
-// Layer assignments (see Dungeon.tscn / WestHall.tscn for the corresponding bits):
-//   bit 0 / 1   — player body
-//   bit 1 / 2   — enemy hurtbox
-//   bit 2 / 4   — player attack hitbox
-//   bit 3 / 8   — enemy attack hitbox
-//   bit 4 / 16  — walls (and door seal StaticBody2Ds)
-//   bit 5 / 32  — door trigger areas
-//   bit 6 / 64  — enemy body (CharacterBody2D)
-//   bit 7 / 128 — player hurtbox
+// Collision layers/masks: see Scripts/Combat/CollisionLayers.cs for the
+// project-wide bit assignments referenced by both .tscn files and code.
 public partial class EnemyController : CharacterBody2D
 {
     [Signal] public delegate void DiedEventHandler();
@@ -29,8 +22,8 @@ public partial class EnemyController : CharacterBody2D
     [Export] public NodePath BodyVisualPath { get; set; } = "Visual";
     [Export] public NodePath HurtboxPath { get; set; } = "Hurtbox";
     [Export] public NodePath AttackHitboxPath { get; set; } = "AttackHitbox";
-    // Mask for the LOS raycast — walls only. Default = bit 4 (16).
-    [Export(PropertyHint.Layers2DPhysics)] public uint LineOfSightMask { get; set; } = 16;
+    // Mask for the LOS raycast — walls only.
+    [Export(PropertyHint.Layers2DPhysics)] public uint LineOfSightMask { get; set; } = CollisionLayers.Walls;
 
     public AiState Phase => _snapshot.Phase;
     public EntityStats Stats => _stats;

@@ -52,6 +52,10 @@ public partial class DungeonRoot : Node2D
 
         if (_player != null)
         {
+            // Apply the run's vessel before anything reads Stats. Player._Ready
+            // ran first (depth-first) with its default Clone vessel; this is
+            // where vessel-select (M8) will diverge from the sandbox default.
+            _player.Configure(_runState.Vessel);
             if (!_player.IsInGroup("player")) _player.AddToGroup("player");
             if (_healthBar != null)
             {
