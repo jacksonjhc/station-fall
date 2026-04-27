@@ -56,6 +56,18 @@ dotnet test src/Stationfall.Tests/ --filter "FullyQualifiedName~DungeonGenerator
 
 > `Stationfall.Godot.csproj` uses `Godot.NET.Sdk/4.6.0`. Update if it diverges from your installed Godot.
 
+## Asset Bootstrap
+
+`Assets/Kenney/` is gitignored — the Kenney CC0 placeholder packs are re-procurable from [kenney.nl](https://kenney.nl/) and not redistributed in this repo. To run the game on a fresh clone:
+
+1. Download **kenney_top-down-shooter** from `https://kenney.nl/assets/top-down-shooter`.
+2. Extract so the path is `Assets/Kenney/kenney_top-down-shooter/PNG/...` (the pack zip extracts with that folder structure).
+3. Open `project.godot` in Godot 4.6 — the editor reimports textures on first load.
+
+Scene `ext_resource` lines reference textures by Godot UID, so once the files exist at the expected path the import resolves automatically. Without the pack, the game still launches but characters and tiles render as broken/missing-texture placeholders.
+
+> Other Kenney packs may sit untracked under `Assets/Kenney/` locally as a personal library; only `kenney_top-down-shooter` is currently referenced by scenes. When a new pack starts being used, document it here and any contributor will know to grab it.
+
 ## Architecture Rule
 
 **Core decides. Godot displays.**

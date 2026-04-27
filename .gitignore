@@ -13,3 +13,7 @@ TestResults/
 
 # Claude Code per-user permission grants (settings.json is shared)
 .claude/settings.local.json
+
+# Kenney CC0 placeholder art — not committed (re-procurable from kenney.nl).
+# Bootstrap instructions in CLAUDE.md § Asset Bootstrap.
+Assets/Kenney/
