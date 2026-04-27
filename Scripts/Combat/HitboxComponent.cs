@@ -39,8 +39,13 @@ public partial class HitboxComponent : Area2D
     {
         if (_active == active) return;
         _active = active;
-        Monitoring = active;
-        if (_shape != null) _shape.Disabled = !active;
+        // Defer physics-state writes. SetActive(false) is typically called from
+        // inside area_entered (HitLanded → PlayerController.DeactivateHitbox)
+        // while the physics server is flushing queries, which forbids synchronous
+        // Monitoring / Disabled mutation. Visual writes stay synchronous so the
+        // swing graphic clears on the same frame the hit registers.
+        SetDeferred(Area2D.PropertyName.Monitoring, active);
+        if (_shape != null) _shape.SetDeferred(CollisionShape2D.PropertyName.Disabled, !active);
         if (_visual != null) _visual.Visible = active;
         if (active) _alreadyHit.Clear();
     }

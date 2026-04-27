@@ -71,7 +71,10 @@ public partial class BreakableCrateNode : Node2D, IPersistentEntity
     private void ApplyDestroyedAppearance()
     {
         Visible = false;
-        if (_hurtbox != null) _hurtbox.Monitorable = false;
+        // ApplyDestroyedAppearance fires from OnHit, which is invoked inside
+        // HitboxComponent.OnAreaEntered — physics flush territory. Monitorable
+        // toggles must defer for the same reason as Monitoring / Disabled.
+        if (_hurtbox != null) _hurtbox.SetDeferred(Area2D.PropertyName.Monitorable, false);
         // Also disable any solid body so the player can walk through.
         var body = GetNodeOrNull<StaticBody2D>("Body");
         if (body != null)

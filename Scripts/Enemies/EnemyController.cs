@@ -207,7 +207,23 @@ public partial class EnemyController : CharacterBody2D
             return;
         }
         var to = _player.GlobalPosition - GlobalPosition;
-        var dir = to.LengthSquared() > 0.001f ? to.Normalized() : Vector2.Zero;
+        var distSq = to.LengthSquared();
+
+        // Hold position once inside attack range. The brain commits to Attack at
+        // MeleeAttackRangePx as soon as cooldown clears; during the ~1.25s gap
+        // between recovery and the next lunge, continually pressing chase
+        // velocity into a player whose body we're already touching reads as
+        // "the enemy is stuck on me" — two CharacterBody2Ds sliding past each
+        // other carries the patient wherever the player walks.
+        var stop = _config.MeleeAttackRangePx;
+        if (distSq <= stop * stop)
+        {
+            Velocity = Vector2.Zero;
+            MoveAndSlide();
+            return;
+        }
+
+        var dir = to / MathF.Sqrt(distSq);
         Velocity = dir * speed;
         MoveAndSlide();
     }

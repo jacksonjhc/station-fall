@@ -199,8 +199,16 @@ public partial class DungeonRoot : Node2D
                 node.PlayerCrossed += dirInt =>
                 {
                     var dir = (CardinalDirection)dirInt;
-                    if (descriptor.Doors.TryGetValue(dir, out var d))
-                        EnterRoom(d.TargetRoomId, fromDirection: dir);
+                    if (!descriptor.Doors.TryGetValue(dir, out var d)) return;
+                    // PlayerCrossed fires from inside Area2D.body_entered, which
+                    // runs during the physics-server flush. EnterRoom tears down
+                    // the active room and AddChilds a new one — that triggers
+                    // _Ready on its DoorNodes, which mutate Monitoring and
+                    // CollisionShape2D.Disabled. Both writes throw "Can't change
+                    // this state while flushing queries". Defer the room swap
+                    // until idle time so physics is no longer mid-step.
+                    var targetId = d.TargetRoomId;
+                    Callable.From(() => EnterRoom(targetId, dir)).CallDeferred();
                 };
             }
             else
