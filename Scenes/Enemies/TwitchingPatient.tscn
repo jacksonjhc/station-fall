@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Enemies/EnemyController.cs" id="1_ctrl"]
 [ext_resource type="Script" path="res://Scripts/Combat/HurtboxComponent.cs" id="2_hurt"]
 [ext_resource type="Script" path="res://Scripts/Combat/HitboxComponent.cs" id="3_hit"]
+[ext_resource type="Texture2D" uid="uid://b464dwxk4wbwa" path="res://Assets/Kenney/kenney_top-down-shooter/PNG/Zombie 1/zoimbie1_stand.png" id="4_zombie"]
 
 [sub_resource type="RectangleShape2D" id="shape_body"]
 size = Vector2(44, 44)
@@ -18,13 +19,9 @@ collision_layer = 64
 collision_mask = 17
 script = ExtResource("1_ctrl")
 
-[node name="Visual" type="ColorRect" parent="."]
-offset_left = -22.0
-offset_top = -22.0
-offset_right = 22.0
-offset_bottom = 22.0
-color = Color(0.55, 0.65, 0.45, 1)
-mouse_filter = 2
+[node name="Visual" type="Sprite2D" parent="."]
+scale = Vector2(1.4, 1.4)
+texture = ExtResource("4_zombie")
 
 [node name="BodyShape" type="CollisionShape2D" parent="."]
 shape = SubResource("shape_body")

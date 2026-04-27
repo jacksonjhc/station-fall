@@ -1,9 +1,10 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Dungeon/RoomController.cs" id="1_room"]
 [ext_resource type="Script" path="res://Scripts/Dungeon/DoorNode.cs" id="2_door"]
 [ext_resource type="Script" path="res://Scripts/Dungeon/BreakableCrateNode.cs" id="3_crate"]
 [ext_resource type="Script" path="res://Scripts/Combat/HurtboxComponent.cs" id="4_hurt"]
+[ext_resource type="Texture2D" uid="uid://dvovb73kjn8uq" path="res://Assets/Kenney/kenney_top-down-shooter/PNG/Tiles/tile_129.png" id="6_crate"]
 
 [sub_resource type="RectangleShape2D" id="shape_door"]
 size = Vector2(64, 64)
@@ -35,7 +36,7 @@ offset_left = -640.0
 offset_top = -360.0
 offset_right = 640.0
 offset_bottom = 360.0
-color = Color(0.16, 0.12, 0.18, 1)
+color = Color(0.22, 0.22, 0.24, 1)
 mouse_filter = 2
 
 [node name="WallLabel" type="Label" parent="."]
@@ -123,13 +124,8 @@ script = ExtResource("3_crate")
 EntityId = "main_crate"
 Hp = 2
 
-[node name="Sprite" type="ColorRect" parent="Crate"]
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-color = Color(0.65, 0.50, 0.25, 1)
-mouse_filter = 2
+[node name="Sprite" type="Sprite2D" parent="Crate"]
+texture = ExtResource("6_crate")
 
 [node name="Hurtbox" type="Area2D" parent="Crate"]
 collision_layer = 2

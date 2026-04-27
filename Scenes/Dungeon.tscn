@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/EntryRoom.tscn" id="scene_entry"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/FarRoom.tscn" id="scene_far"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/WestHall.tscn" id="scene_west"]
+[ext_resource type="Texture2D" uid="uid://cpifbvoij7i4k" path="res://Assets/Kenney/kenney_top-down-shooter/PNG/Survivor 1/survivor1_stand.png" id="8_survivor"]
 
 [sub_resource type="RectangleShape2D" id="shape_player_body"]
 size = Vector2(44, 44)
@@ -41,13 +42,9 @@ collision_layer = 1
 collision_mask = 80
 script = ExtResource("2_player")
 
-[node name="Visual" type="ColorRect" parent="Player" unique_id=263969108]
-offset_left = -22.0
-offset_top = -22.0
-offset_right = 22.0
-offset_bottom = 22.0
-mouse_filter = 2
-color = Color(0.45, 0.65, 0.95, 1)
+[node name="Visual" type="Sprite2D" parent="Player" unique_id=263969108]
+scale = Vector2(1.4, 1.4)
+texture = ExtResource("8_survivor")
 
 [node name="BodyShape" type="CollisionShape2D" parent="Player" unique_id=152865924]
 shape = SubResource("shape_player_body")

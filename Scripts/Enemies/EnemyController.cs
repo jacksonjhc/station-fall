@@ -2,6 +2,7 @@ using Godot;
 using Stationfall.Core.Ai;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
+using Stationfall.Core.Rng;
 using Stationfall.Godot.Combat;
 
 namespace Stationfall.Godot.Enemies;
@@ -39,13 +40,15 @@ public partial class EnemyController : CharacterBody2D
     private EntityStats _stats;
     private double _now;
     private CharacterBody2D? _player;
-    private ColorRect? _bodyVisual;
+    private Node2D? _bodyVisual;
     private HurtboxComponent? _hurtbox;
     private HitboxComponent? _attackHitbox;
     private Color _baseColor = new(0.55f, 0.65f, 0.45f);
     private Color _windupColor = new(1.0f, 0.85f, 0.30f);
     private double _hitFlashUntilSeconds;
     private Vector2 _lungeDirection = Vector2.Right;
+    private Vector2 _visualFacing = Vector2.Right;
+    private RngService? _rng;
     private const double HitFlashSeconds = 0.10;
 
     public EnemyController()
@@ -78,12 +81,17 @@ public partial class EnemyController : CharacterBody2D
         _baseColor = Definition.BodyColor;
         _windupColor = Definition.WindupTint;
 
+        // Per-instance seed so two patients in the same room don't shimmy in lockstep.
+        // GetInstanceId is Godot's stable, unique runtime id — fine as a placeholder
+        // until run-level RNG (RunState seeding) lands.
+        _rng = new RngService(unchecked((int)GetInstanceId()));
+
         _player = GetTree().GetFirstNodeInGroup("player") as CharacterBody2D;
-        _bodyVisual = GetNodeOrNull<ColorRect>(BodyVisualPath);
+        _bodyVisual = GetNodeOrNull<Node2D>(BodyVisualPath);
         _hurtbox = GetNodeOrNull<HurtboxComponent>(HurtboxPath);
         _attackHitbox = GetNodeOrNull<HitboxComponent>(AttackHitboxPath);
 
-        if (_bodyVisual != null) _bodyVisual.Color = _baseColor;
+        if (_bodyVisual != null) _bodyVisual.Modulate = _baseColor;
 
         if (_hurtbox != null)
         {
@@ -109,7 +117,7 @@ public partial class EnemyController : CharacterBody2D
         if (_player == null) return;
 
         var sensor = BuildSensor();
-        var nextSnapshot = EnemyAiBrain.Tick(_snapshot, sensor, _now, (float)delta, _config);
+        var nextSnapshot = EnemyAiBrain.Tick(_snapshot, sensor, _now, (float)delta, _config, _rng);
         bool phaseChanged = nextSnapshot.Phase != _snapshot.Phase;
         _snapshot = nextSnapshot;
 
@@ -173,7 +181,8 @@ public partial class EnemyController : CharacterBody2D
         {
             case AiState.Idle:
             case AiState.Patrol:
-                Velocity = Vector2.Zero;
+                var idle = EnemyAiBrain.IdleVelocity(_snapshot, _config);
+                Velocity = new Vector2(idle.X, idle.Y);
                 MoveAndSlide();
                 break;
             case AiState.Chase:
@@ -263,15 +272,40 @@ public partial class EnemyController : CharacterBody2D
     private void ApplyVisual()
     {
         if (_bodyVisual == null) return;
+
+        // Facing rules:
+        //   Attack — locked to the lunge direction captured at windup start.
+        //   Chase  — track the player.
+        //   Idle/Patrol while stuttering — face the wander direction (random, not the
+        //     player) so the patient doesn't slide sideways. While paused, hold last
+        //     facing so a dormant patient doesn't betray aggro.
+        if (_snapshot.Phase == AiState.Attack)
+        {
+            _visualFacing = _lungeDirection;
+        }
+        else if (_snapshot.Phase == AiState.Chase && _player != null)
+        {
+            var to = _player.GlobalPosition - GlobalPosition;
+            if (to.LengthSquared() > 0.001f) _visualFacing = to.Normalized();
+        }
+        else if (_snapshot.Phase is AiState.Idle or AiState.Patrol)
+        {
+            var wander = _snapshot.WanderDirection;
+            if (wander.LengthSquared() > 0f)
+                _visualFacing = new Vector2(wander.X, wander.Y);
+        }
+        // Sprites are authored facing right (+X) at rotation 0.
+        _bodyVisual.Rotation = _visualFacing.Angle();
+
         bool flashing = _now < _hitFlashUntilSeconds;
         if (flashing)
         {
-            _bodyVisual.Color = Colors.White;
+            _bodyVisual.Modulate = Colors.White;
             return;
         }
         bool inWindup = _snapshot.Phase == AiState.Attack && _snapshot.PhaseFrame < _config.LungeWindupFrames;
         bool inStagger = _snapshot.Phase == AiState.Stagger;
-        _bodyVisual.Color = (inWindup || inStagger) ? _windupColor : _baseColor;
+        _bodyVisual.Modulate = (inWindup || inStagger) ? _windupColor : _baseColor;
     }
 
     private static ComboStep BuildLungeStep(TwitchingPatientConfig cfg) => new(

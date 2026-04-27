@@ -19,9 +19,9 @@ See [PLANNING.md](PLANNING.md) for the full design document and [ROADMAP.md](ROA
 ```
 Stationfall.sln
 ├── Stationfall.Godot.csproj      # Root Godot project; references Core
-│   ├── Scripts/                  # Godot-facing C# nodes (partial classes, signals)
-│   ├── Scenes/                   # .tscn files
-│   └── Assets/                   # Sprites, audio, fonts
+├── Scripts/                      # Godot-facing C# nodes (partial classes, signals)
+├── Scenes/                       # .tscn files
+├── Assets/                       # Audio, Data (.tres), Fonts, Sprites, Kenney/ packs
 ├── src/Stationfall.Core/         # Pure C# — zero Godot dependencies
 │   ├── Entities/                 # EntityStats, PlayerVessel, EnemyDefinition
 │   ├── Combat/                   # DamageCalculator, StatusEffect, DamageResult
@@ -130,6 +130,8 @@ Godot EnemyController, each _PhysicsProcess:
 - **New item effect:** define in `Core/Items/`, write a test, then wire visual feedback in a Godot pickup script.
 - **New enemy type:** define `EnemyAiBrain` transitions in Core, test them, then build the Godot `EnemyController` scene.
 - **New tool:** define in `Core/Tools/`, write a test for its rules, then wire input + visual in a Godot tool node.
+- **Placeholder art** — `Assets/Kenney/kenney_top-down-shooter/` is the chosen placeholder pack. Characters use `Sprite2D` (scale ~1.4 to fit the 44×44 collision body); floors use `TextureRect` with `stretch_mode = 1` (tile). Project's default texture filter is Nearest.
+- **Tint / flash via `Modulate`, not `Color`** — visual feedback (hit flash, windup telegraph) must set `CanvasItem.Modulate` so it works on any visual node. Never branch on `ColorRect` — that locks out sprite-based visuals.
 
 ## Testing Expectations
 

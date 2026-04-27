@@ -25,6 +25,7 @@ public partial class PlayerController : CharacterBody2D
 
     [Export] public NodePath AttackHitboxPath { get; set; } = "AttackHitbox";
     [Export] public NodePath HurtboxPath { get; set; } = "Hurtbox";
+    [Export] public NodePath VisualPath { get; set; } = "Visual";
 
     public EntityStats Stats { get; private set; } = PlayerVessel.CreateClone().BaseStats;
     public DodgeProfile DodgeProfile { get; private set; } = DodgeProfile.Roll;
@@ -45,6 +46,7 @@ public partial class PlayerController : CharacterBody2D
     private bool _attackHasHit;
     private HitboxComponent? _attackHitbox;
     private HurtboxComponent? _hurtbox;
+    private Node2D? _visual;
 
     public override void _Ready()
     {
@@ -70,7 +72,18 @@ public partial class PlayerController : CharacterBody2D
             _hurtbox.OnDamage = (result, _) => TakeDamage(result);
         }
 
+        _visual = GetNodeOrNull<Node2D>(VisualPath);
+        ApplyVisualFacing();
+
         EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
+    }
+
+    // Kenney top-down-shooter sprites are authored facing right (+X) at rotation 0,
+    // so Facing.Angle() maps directly onto the visual rotation.
+    private void ApplyVisualFacing()
+    {
+        if (_visual == null) return;
+        _visual.Rotation = Facing.Angle();
     }
 
     public override void _PhysicsProcess(double delta)
@@ -132,6 +145,7 @@ public partial class PlayerController : CharacterBody2D
         if (input.LengthSquared() > 0.01f)
         {
             Facing = input.Normalized();
+            ApplyVisualFacing();
             ChangeState(PlayerState.Moving);
         }
         else
@@ -151,6 +165,7 @@ public partial class PlayerController : CharacterBody2D
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
         var dir = input.LengthSquared() > 0.01f ? input.Normalized() : Facing;
         Facing = dir;
+        ApplyVisualFacing();
         // distance / time: total frames at 60fps → seconds.
         float seconds = DodgeProfile.TotalFrames / PhysicsFps;
         float speed = DodgeProfile.DistancePixels / seconds;

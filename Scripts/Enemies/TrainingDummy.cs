@@ -23,8 +23,8 @@ public partial class TrainingDummy : Node2D
     public EntityStats Stats { get; private set; } = new(MaxHp: 1, Hp: 1, MoveSpeed: 0, AttackPower: 0, AttackRate: 0, Reach: 0, Luck: 0, Armor: 0);
 
     private HurtboxComponent? _hurtbox;
-    private ColorRect? _spriteRect;
-    private Color _baseColor = Colors.White;
+    private CanvasItem? _spriteVisual;
+    private Color _baseModulate = Colors.White;
     private double _lastDamagedAt = -999;
 
     public override void _Ready()
@@ -39,18 +39,16 @@ public partial class TrainingDummy : Node2D
             _hurtbox.OnDamage = OnHit;
         }
 
-        _spriteRect = GetNodeOrNull<ColorRect>(SpritePath);
-        if (_spriteRect != null) _baseColor = _spriteRect.Color;
+        _spriteVisual = GetNodeOrNull<CanvasItem>(SpritePath);
+        if (_spriteVisual != null) _baseModulate = _spriteVisual.Modulate;
     }
 
     public override void _Process(double delta)
     {
-        // Swap the ColorRect's color directly during the flash window — modulate-tinting
-        // a red box with red was imperceptible. Pure-white swap pops cleanly.
-        if (_spriteRect != null)
+        if (_spriteVisual != null)
         {
             float t = (float)((Time.GetTicksMsec() / 1000.0) - _lastDamagedAt);
-            _spriteRect.Color = t < FlashDurationSeconds ? FlashColor : _baseColor;
+            _spriteVisual.Modulate = t < FlashDurationSeconds ? FlashColor : _baseModulate;
         }
 
         if (Stats.Hp < Stats.MaxHp && (Time.GetTicksMsec() / 1000.0) - _lastDamagedAt > HpResetDelaySeconds)

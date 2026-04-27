@@ -1,3 +1,7 @@
+using System;
+using System.Numerics;
+using Stationfall.Core.Rng;
+
 namespace Stationfall.Core.Ai;
 
 // Twitching Patient brain (W3 / PLANNING.md § Enemy Roster). Pure transition
@@ -14,14 +18,15 @@ public static class EnemyAiBrain
         SensorData sensor,
         double nowSeconds,
         float deltaSeconds,
-        TwitchingPatientConfig config)
+        TwitchingPatientConfig config,
+        RngService? rng = null)
     {
         if (snapshot.Phase == AiState.Dead) return snapshot;
         if (!sensor.IsAlive) return snapshot with { Phase = AiState.Dead, PhaseFrame = 0 };
 
         return snapshot.Phase switch
         {
-            AiState.Idle or AiState.Patrol => TickIdle(snapshot, sensor, config),
+            AiState.Idle or AiState.Patrol => TickIdle(snapshot, sensor, nowSeconds, config, rng),
             AiState.Chase => TickChase(snapshot, sensor, nowSeconds, deltaSeconds, config),
             AiState.Attack => TickAttack(snapshot, nowSeconds, config),
             AiState.Stagger => TickStagger(snapshot, sensor, config),
@@ -47,12 +52,55 @@ public static class EnemyAiBrain
         };
     }
 
+    // Velocity the controller should apply during Idle/Patrol — direction the brain
+    // picked, scaled by idle move speed. Zero while paused or whenever no rng was
+    // supplied (the brain leaves WanderDirection at default in that case).
+    public static Vector2 IdleVelocity(EnemyAiSnapshot snapshot, TwitchingPatientConfig config)
+        => snapshot.WanderDirection * config.IdleMoveSpeedPxPerSec;
+
     private static EnemyAiSnapshot TickIdle(
-        EnemyAiSnapshot snapshot, SensorData sensor, TwitchingPatientConfig config)
+        EnemyAiSnapshot snapshot,
+        SensorData sensor,
+        double nowSeconds,
+        TwitchingPatientConfig config,
+        RngService? rng)
     {
         // Vision perception: needs LOS AND distance ≤ aggro range.
         if (sensor.HasLineOfSight && sensor.DistanceToPlayerPx <= config.AggroRangePx)
             return snapshot with { Phase = AiState.Chase, PhaseFrame = 0, TimeSinceLosLossSeconds = 0f };
+
+        // Roll a new stutter/pause interval each time the prior one elapses. Alternation
+        // (currently moving → next is pause; currently paused → next is stutter) reads
+        // more like a twitch than coin-flip roulette.
+        if (rng != null && nowSeconds >= snapshot.WanderEndsAtSeconds)
+        {
+            bool currentlyMoving = snapshot.WanderDirection.LengthSquared() > 0f;
+            if (currentlyMoving)
+            {
+                double pauseSeconds = config.IdlePauseMinSeconds
+                    + rng.NextDouble() * (config.IdlePauseMaxSeconds - config.IdlePauseMinSeconds);
+                return snapshot with
+                {
+                    PhaseFrame = snapshot.PhaseFrame + 1,
+                    WanderDirection = Vector2.Zero,
+                    WanderEndsAtSeconds = nowSeconds + pauseSeconds,
+                };
+            }
+            else
+            {
+                double angle = rng.NextDouble() * 2.0 * Math.PI;
+                var direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
+                double stutterSeconds = config.IdleStutterMinSeconds
+                    + rng.NextDouble() * (config.IdleStutterMaxSeconds - config.IdleStutterMinSeconds);
+                return snapshot with
+                {
+                    PhaseFrame = snapshot.PhaseFrame + 1,
+                    WanderDirection = direction,
+                    WanderEndsAtSeconds = nowSeconds + stutterSeconds,
+                };
+            }
+        }
+
         return snapshot with { PhaseFrame = snapshot.PhaseFrame + 1 };
     }
 

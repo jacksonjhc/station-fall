@@ -1,4 +1,6 @@
+using System.Numerics;
 using Stationfall.Core.Ai;
+using Stationfall.Core.Rng;
 using Xunit;
 
 namespace Stationfall.Tests.Ai;
@@ -224,5 +226,91 @@ public class EnemyAiBrainTests
         Assert.Equal(AiState.Dead, s.Phase);
         var s2 = EnemyAiBrain.OnDamageTaken(dead, Sees(40f, hpRatio: 0.5f), Cfg);
         Assert.Equal(AiState.Dead, s2.Phase);
+    }
+
+    // --- Idle stutter-wander ---
+
+    [Fact]
+    public void Idle_WithoutRng_LeavesWanderDirectionAtZero()
+    {
+        // Backward compat: existing call sites that don't pass an rng must keep
+        // the old "stand still" behavior — required so OnDamageTaken etc. work
+        // unchanged in tests that don't care about wander.
+        var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, Blind(500f), nowSeconds: 1.0, DtSixtyHz, Cfg);
+        Assert.Equal(Vector2.Zero, s.WanderDirection);
+        Assert.Equal(0, s.WanderEndsAtSeconds);
+    }
+
+    [Fact]
+    public void Idle_WithRng_RollsAStutterDirection_OnFirstTick()
+    {
+        var rng = new RngService(seed: 1);
+        var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, Blind(500f), nowSeconds: 0.0, DtSixtyHz, Cfg, rng);
+        // First tick: was paused (zero direction) → starts a stutter.
+        Assert.True(s.WanderDirection.LengthSquared() > 0f, "expected non-zero wander direction after first idle tick");
+        // Direction is a unit vector (within float tolerance).
+        Assert.Equal(1f, s.WanderDirection.Length(), 4);
+        // Stutter duration is within configured bounds.
+        Assert.InRange(s.WanderEndsAtSeconds, Cfg.IdleStutterMinSeconds, Cfg.IdleStutterMaxSeconds);
+    }
+
+    [Fact]
+    public void Idle_WanderDirection_PersistsBetweenRollIntervals()
+    {
+        var rng = new RngService(seed: 2);
+        // First tick rolls a stutter at t=0.
+        var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, Blind(500f), nowSeconds: 0.0, DtSixtyHz, Cfg, rng);
+        var directionAfterRoll = s.WanderDirection;
+        // Tick again well before the stutter expires — direction must be unchanged.
+        var s2 = EnemyAiBrain.Tick(s, Blind(500f), nowSeconds: 0.1, DtSixtyHz, Cfg, rng);
+        Assert.Equal(directionAfterRoll, s2.WanderDirection);
+    }
+
+    [Fact]
+    public void Idle_AlternatesStutterAndPause_AcrossIntervals()
+    {
+        var rng = new RngService(seed: 3);
+        var snap = EnemyAiSnapshot.Initial;
+        double now = 0.0;
+        // Step time forward in coarse increments past each WanderEndsAt boundary,
+        // collecting whether each rolled interval was a stutter (non-zero dir) or pause.
+        var samples = new System.Collections.Generic.List<bool>(); // true = moving
+        for (int i = 0; i < 20; i++)
+        {
+            snap = EnemyAiBrain.Tick(snap, Blind(500f), now, DtSixtyHz, Cfg, rng);
+            samples.Add(snap.WanderDirection.LengthSquared() > 0f);
+            now = snap.WanderEndsAtSeconds + 0.001;
+        }
+        Assert.Contains(true, samples);
+        Assert.Contains(false, samples);
+        // Strict alternation: each sample differs from the previous one.
+        for (int i = 1; i < samples.Count; i++)
+            Assert.NotEqual(samples[i - 1], samples[i]);
+    }
+
+    [Fact]
+    public void IdleVelocity_IsZero_WhenWanderDirectionIsZero()
+    {
+        var v = EnemyAiBrain.IdleVelocity(EnemyAiSnapshot.Initial, Cfg);
+        Assert.Equal(Vector2.Zero, v);
+    }
+
+    [Fact]
+    public void IdleVelocity_ScalesByIdleMoveSpeed()
+    {
+        var snap = EnemyAiSnapshot.Initial with { WanderDirection = new Vector2(1f, 0f) };
+        var v = EnemyAiBrain.IdleVelocity(snap, Cfg);
+        Assert.Equal(Cfg.IdleMoveSpeedPxPerSec, v.X);
+        Assert.Equal(0f, v.Y);
+    }
+
+    [Fact]
+    public void Idle_AggroPathStill_TakesPrecedenceOverWander()
+    {
+        // Even with rng available, sighting the player must still trigger Chase
+        // (without rolling new wander state to clobber the transition).
+        var rng = new RngService(seed: 4);
+        var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, Sees(100f), nowSeconds: 1.0, DtSixtyHz, Cfg, rng);
+        Assert.Equal(AiState.Chase, s.Phase);
     }
 }
