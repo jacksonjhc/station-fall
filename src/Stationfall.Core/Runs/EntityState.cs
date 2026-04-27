@@ -17,3 +17,23 @@ public record BreakableCrateState(int Hp, bool Destroyed) : EntityState
 {
     public override string Kind => "BreakableCrate";
 }
+
+// Per-pickup snapshot. ItemKey discriminates pickup type (currently
+// "credit" / "key_generic"). Position uses raw floats so Core stays free of
+// Godot's Vector2. Collected=true entries are kept across snapshots so a
+// once-collected authored pickup (e.g., a vault credit) doesn't respawn on
+// every re-entry; for dynamic drops the orphan-restore pass simply skips
+// collected entries.
+public record PickupState(string ItemKey, int Value, float PositionX, float PositionY, bool Collected) : EntityState
+{
+    public override string Kind => "Pickup";
+}
+
+// Per-spawner record of which spawn markers have already produced a kill
+// this run. EnemySpawner reads this to skip dead markers when re-spawning
+// after a room re-entry, so partially-cleared rooms don't reset the kill
+// count. Live markers are not tracked — they re-spawn at full HP.
+public record EnemySpawnerState(IReadOnlyList<string> DeadMarkerIds) : EntityState
+{
+    public override string Kind => "EnemySpawner";
+}

@@ -26,6 +26,7 @@ public partial class DungeonRoot : Node2D
     [Export] public PackedScene? EntryRoomScene { get; set; }
     [Export] public PackedScene? WestHallScene { get; set; }
     [Export] public PackedScene? FarRoomScene { get; set; }
+    [Export] public PackedScene? VaultRoomScene { get; set; }
 
     public DungeonLayout Layout { get; private set; } = HandBuiltLayouts.M2Sandbox();
     public RunState State => _runState;
@@ -72,10 +73,11 @@ public partial class DungeonRoot : Node2D
 
         if (_minimap != null) _minimap.SetLayout(Layout);
 
-        // Bind run currency to the HUD-facing service. Deferred so listeners
-        // (HUD CreditCounter) that subscribe in their own _Ready see the
-        // initial balance via the BalanceChanged emit.
+        // Bind run currency + keys to the HUD-facing services. Deferred so
+        // listeners (HUD counters, KeyLocked DoorNodes) that subscribe in
+        // their own _Ready see the initial balance via the change-emit.
         CreditsService.Instance?.Bind(_runState);
+        KeysService.Instance?.Bind(_runState);
 
         EnterRoom(Layout.EntryRoomId, fromDirection: null);
     }
@@ -180,11 +182,39 @@ public partial class DungeonRoot : Node2D
     private void RestoreRoom(string roomId, RoomController room)
     {
         if (!_runState.Dungeon.Rooms.TryGetValue(roomId, out var rs)) return;
+
+        var matchedIds = new HashSet<string>();
         foreach (var entity in CollectPersistentEntities(room))
         {
             if (string.IsNullOrEmpty(entity.EntityId)) continue;
             if (rs.Entities.TryGetValue(entity.EntityId, out var state))
+            {
                 entity.RestoreState(state);
+                matchedIds.Add(entity.EntityId);
+            }
+        }
+
+        // Orphan pass: any saved entries with no matching node in the freshly
+        // instantiated scene. For dynamic pickups (no .tscn placement) this is
+        // how they reappear after a room re-entry — re-spawn at the saved
+        // position with no kick. Collected dynamic entries are skipped (they
+        // shouldn't reappear), and we leave the entry in Entities so future
+        // snapshots don't churn — the dictionary is room-scoped and small.
+        foreach (var (id, state) in rs.Entities)
+        {
+            if (matchedIds.Contains(id)) continue;
+            if (state is not PickupState p) continue;
+            if (p.Collected) continue;
+            var pos = new Vector2(p.PositionX, p.PositionY);
+            switch (p.ItemKey)
+            {
+                case CreditPickupNode.ItemKey:
+                    CreditPickupNode.Restore(room, pos, p.Value, id);
+                    break;
+                case KeyPickupNode.ItemKey:
+                    KeyPickupNode.Restore(room, pos, p.Value, id);
+                    break;
+            }
         }
     }
 
@@ -208,12 +238,22 @@ public partial class DungeonRoot : Node2D
         {
             if (descriptor.Doors.TryGetValue(node.Direction, out var doorDesc))
             {
-                node.Configure(doorDesc.Type);
+                // Pre-seed the door's "already consumed" flag from DungeonState so
+                // a KeyLocked door the player crossed earlier this run stays open
+                // when they re-enter the room without spending another key.
+                bool keyLockConsumed = doorDesc.Type == DoorType.KeyLocked
+                    && _runState.Dungeon.IsDoorUnlocked(descriptor.Id, doorDesc.TargetRoomId);
+                node.Configure(doorDesc.Type, keyLockConsumed);
                 node.Visible = true;
                 node.PlayerCrossed += dirInt =>
                 {
                     var dir = (CardinalDirection)dirInt;
                     if (!descriptor.Doors.TryGetValue(dir, out var d)) return;
+                    // KeyLocked cross consumed a key inside DoorNode.OnBodyEntered
+                    // — record the edge so the destination room's matching door
+                    // (and any future re-entries) skip the consume step.
+                    if (d.Type == DoorType.KeyLocked)
+                        _runState.Dungeon.MarkDoorUnlocked(descriptor.Id, d.TargetRoomId);
                     // PlayerCrossed fires from inside Area2D.body_entered, which
                     // runs during the physics-server flush. EnterRoom tears down
                     // the active room and AddChilds a new one — that triggers
@@ -281,6 +321,7 @@ public partial class DungeonRoot : Node2D
         "EntryRoom" => EntryRoomScene,
         "WestHall" => WestHallScene,
         "FarRoom" => FarRoomScene,
+        "VaultRoom" => VaultRoomScene,
         _ => null,
     };
 

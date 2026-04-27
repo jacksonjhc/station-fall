@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://m4creditpickup1"]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Items/CreditPickupNode.cs" id="1_pickup"]
 [ext_resource type="Texture2D" uid="uid://c2uj2k6y7ynq8" path="res://Assets/Kenney/kenney_game-icons-expansion/PNG/White/1x/coin.png" id="2_coin"]

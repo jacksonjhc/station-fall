@@ -61,12 +61,19 @@ collision_mask = 0
 [node name="Shape" type="CollisionShape2D" parent="WallBottom"]
 shape = SubResource("shape_wall_h")
 
-[node name="WallRight" type="StaticBody2D" parent="."]
-position = Vector2(656, 0)
+[node name="WallRightUpper" type="StaticBody2D" parent="."]
+position = Vector2(656, -196)
 collision_layer = 16
 collision_mask = 0
-[node name="Shape" type="CollisionShape2D" parent="WallRight"]
-shape = SubResource("shape_wall_v_full")
+[node name="Shape" type="CollisionShape2D" parent="WallRightUpper"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="WallRightLower" type="StaticBody2D" parent="."]
+position = Vector2(656, 196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallRightLower"]
+shape = SubResource("shape_wall_v_split")
 
 [node name="WallLeftUpper" type="StaticBody2D" parent="."]
 position = Vector2(-656, -196)
@@ -83,7 +90,7 @@ collision_mask = 0
 shape = SubResource("shape_wall_v_split")
 
 [node name="DoorWest" type="Area2D" parent="."]
-position = Vector2(-600, 0)
+position = Vector2(-656, 0)
 collision_layer = 32
 collision_mask = 1
 script = ExtResource("2_door")
@@ -111,10 +118,46 @@ color = Color(0.85, 0.30, 0.30, 1)
 mouse_filter = 2
 
 [node name="DoorWestSeal" type="StaticBody2D" parent="."]
-position = Vector2(-600, 0)
+position = Vector2(-656, 0)
 collision_layer = 16
 collision_mask = 0
 [node name="Shape" type="CollisionShape2D" parent="DoorWestSeal"]
+shape = SubResource("shape_door_seal")
+disabled = true
+
+[node name="DoorEast" type="Area2D" parent="."]
+position = Vector2(656, 0)
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("2_door")
+DirectionInt = 1
+SealShapePath = NodePath("../DoorEastSeal/Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="DoorEast"]
+shape = SubResource("shape_door")
+
+[node name="Open" type="ColorRect" parent="DoorEast"]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.4, 0.5, 0.55, 0.8)
+mouse_filter = 2
+
+[node name="Seal" type="ColorRect" parent="DoorEast"]
+visible = false
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.85, 0.75, 0.30, 1)
+mouse_filter = 2
+
+[node name="DoorEastSeal" type="StaticBody2D" parent="."]
+position = Vector2(656, 0)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="DoorEastSeal"]
 shape = SubResource("shape_door_seal")
 disabled = true
 

@@ -1,27 +1,35 @@
 using Godot;
 using Stationfall.Core.Rng;
+using Stationfall.Core.Runs;
 using Stationfall.Godot.Combat;
+using Stationfall.Godot.Persistence;
 
 namespace Stationfall.Godot.Items;
 
 // One credit pickup. Magnet pulls toward the player when in range, body_entered
-// against the player grants and despawns. Lives parented under the active room
-// so an uncollected pickup is lost on room exit (Isaac rule).
+// against the player grants on contact. Lives parented under the active room
+// and persists across room exits via IPersistentEntity — the snapshotted
+// PickupState records position + collected status so re-entry restores both
+// authored vault credits (collected = stay invisible) and dynamic enemy
+// drops (uncollected = re-spawn at saved position).
 //
 // Collision contract:
 //   collision_layer = 0  (nothing else queries pickups)
 //   collision_mask  = PlayerBody  (Area2D detects the player CharacterBody2D)
 //
-// Spawn pattern: the pickup is given a small random kick at construction so a
-// stack of credits dropped from a single enemy fans out instead of stacking
-// pixel-perfect. The kick decays in <0.4s so the player never sees a sliding
-// coin.
-public partial class CreditPickupNode : Area2D
+// EntityId rules:
+//   - Authored placements (e.g. VaultRoom credits) set EntityId in the .tscn.
+//   - Dynamic drops auto-assign a GUID-based id at Spawn / Restore time so
+//     SnapshotRoom has something to key off.
+public partial class CreditPickupNode : Area2D, IPersistentEntity
 {
+    [Export] public string EntityId { get; set; } = "";
     [Export] public int Value { get; set; } = 1;
     [Export] public float MagnetRadiusPx { get; set; } = 110f;
     [Export] public float MaxMagnetSpeedPxPerSec { get; set; } = 720f;
     [Export] public float CollectRadiusPx { get; set; } = 18f;
+
+    public const string ItemKey = "credit";
 
     private Vector2 _kickVelocity;
     private double _kickRemainingSec;
@@ -48,6 +56,7 @@ public partial class CreditPickupNode : Area2D
         }
         var pickup = _scene.Instantiate<CreditPickupNode>();
         pickup.Value = value;
+        pickup.EntityId = NewDynamicId();
 
         // Random outward kick — angle from rng so it's reproducible. Speed
         // 280–460 px/s combined with the linear-taper integration over
@@ -82,6 +91,29 @@ public partial class CreditPickupNode : Area2D
             pickup.ApplyDropKick(kick);
         }).CallDeferred();
     }
+
+    // Re-spawn an orphan pickup whose state was snapshotted last visit but
+    // whose source isn't authored in the room scene. No kick — the pickup
+    // resumes at its saved-rest position. Called from DungeonRoot.RestoreRoom
+    // outside any physics-flush window, so the AddChild is immediate.
+    public static void Restore(Node parent, Vector2 globalPosition, int value, string entityId)
+    {
+        if (value <= 0) return;
+        _scene ??= ResourceLoader.Load<PackedScene>(PickupScenePath);
+        if (_scene == null)
+        {
+            GD.PushError($"CreditPickupNode: missing scene at {PickupScenePath}");
+            return;
+        }
+        var pickup = _scene.Instantiate<CreditPickupNode>();
+        pickup.Value = value;
+        pickup.EntityId = entityId;
+        parent.AddChild(pickup);
+        pickup.GlobalPosition = globalPosition;
+    }
+
+    private static string NewDynamicId() =>
+        "pickup_credit_" + System.Guid.NewGuid().ToString("N").Substring(0, 12);
 
     public override void _Ready()
     {
@@ -154,9 +186,38 @@ public partial class CreditPickupNode : Area2D
         if (_collected) return;
         _collected = true;
         CreditsService.Instance?.Add(Value);
-        // Disable further detection before tearing down; deferred to stay out
-        // of any in-flight physics flush this call may have originated from.
+        ApplyCollectedAppearance();
+    }
+
+    // Stay alive in the tree after collection so SnapshotRoom can capture
+    // Collected=true (mirrors BreakableCrateNode). The room teardown frees
+    // the node when the player exits. For dynamic pickups this also means the
+    // saved entry has Collected=true, which the orphan-restore pass skips.
+    private void ApplyCollectedAppearance()
+    {
+        Visible = false;
         SetDeferred(Area2D.PropertyName.Monitoring, false);
-        QueueFree();
+    }
+
+    public EntityState? CaptureState() => new PickupState(
+        ItemKey,
+        Value,
+        GlobalPosition.X,
+        GlobalPosition.Y,
+        _collected);
+
+    public void RestoreState(EntityState state)
+    {
+        if (state is not PickupState s) return;
+        if (s.Collected)
+        {
+            _collected = true;
+            ApplyCollectedAppearance();
+            return;
+        }
+        // Authored pickup that wasn't picked up last visit — resume from saved
+        // position so e.g. a kicked-around vault credit lands wherever the
+        // player nudged it, not at the .tscn-authored spot.
+        GlobalPosition = new Vector2(s.PositionX, s.PositionY);
     }
 }

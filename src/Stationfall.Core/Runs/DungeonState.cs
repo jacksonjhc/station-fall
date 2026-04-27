@@ -13,6 +13,13 @@ public class DungeonState
     public HashSet<string> VisitedRoomIds { get; } = new();
     public string ActiveRoomId { get; set; } = "";
 
+    // Key-consumed doors stay open from both sides for the rest of the run
+    // (W7 sticky-open rule). The descriptor on each side still says
+    // KeyLocked, so the unlock state has to live somewhere outside the
+    // descriptor — here, keyed by canonical edge id (sorted room-pair).
+    // Both DoorNodes (FarRoom east + VaultRoom west) hash to the same entry.
+    public HashSet<string> UnlockedDoorEdges { get; } = new();
+
     public RoomState GetOrCreateRoom(string roomId)
     {
         if (!Rooms.TryGetValue(roomId, out var state))
@@ -25,4 +32,13 @@ public class DungeonState
 
     public bool IsRoomCleared(string roomId) =>
         Rooms.TryGetValue(roomId, out var state) && state.IsCleared;
+
+    public static string EdgeId(string a, string b) =>
+        string.CompareOrdinal(a, b) <= 0 ? $"{a}|{b}" : $"{b}|{a}";
+
+    public bool IsDoorUnlocked(string roomA, string roomB) =>
+        UnlockedDoorEdges.Contains(EdgeId(roomA, roomB));
+
+    public void MarkDoorUnlocked(string roomA, string roomB) =>
+        UnlockedDoorEdges.Add(EdgeId(roomA, roomB));
 }

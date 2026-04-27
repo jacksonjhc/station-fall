@@ -5,6 +5,7 @@ using Godot;
 using Stationfall.Core.Combat;
 using Stationfall.Godot.Combat;
 using Stationfall.Godot.Dungeon;
+using Stationfall.Godot.Items;
 using Stationfall.Godot.Player;
 
 namespace Stationfall.Godot.Debug;
@@ -179,9 +180,32 @@ public partial class DebugOverlay : CanvasLayer
         "killall" => CmdKillAll(),
         "hb" => CmdToggleHitboxViz(),
         "seed" => CmdSeed(args),
+        "give" => CmdGive(args),
         "help" or "?" => CmdHelp(),
         _ => $"unknown: {cmd} (try 'help')",
     };
+
+    private string CmdGive(string[] args)
+    {
+        if (args.Length == 0)
+            return "usage: give <key|credit> [amount]";
+        int amount = 1;
+        if (args.Length >= 2 && !int.TryParse(args[1], out amount))
+            return "amount must be an integer";
+        switch (args[0].ToLowerInvariant())
+        {
+            case "key":
+                if (KeysService.Instance == null) return "keys service not ready";
+                KeysService.Instance.Add(amount);
+                return $"+{amount} key (now {KeysService.Instance.Count})";
+            case "credit":
+                if (CreditsService.Instance == null) return "credits service not ready";
+                CreditsService.Instance.Add(amount);
+                return $"+{amount} credit (now {CreditsService.Instance.Balance})";
+            default:
+                return $"unknown item '{args[0]}'; try: key, credit";
+        }
+    }
 
     private string CmdSpawn(string[] args)
     {
@@ -256,7 +280,8 @@ public partial class DebugOverlay : CanvasLayer
         "clear         clear active room",
         "killall       kill every enemy in dungeon",
         "hb            toggle hitbox/hurtbox viz",
-        "seed [n]      show / set run seed");
+        "seed [n]      show / set run seed",
+        "give <type> [n]  grant key|credit");
 
     private static string JoinIds(IEnumerable<string> ids)
     {

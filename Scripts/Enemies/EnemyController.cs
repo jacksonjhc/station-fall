@@ -336,35 +336,45 @@ public partial class EnemyController : CharacterBody2D, IFreezable
         QueueFree();
     }
 
-    // Roll the loot table from this enemy's definition and spawn the rolled
-    // pickup under the enemy's parent (the room) so the pickup outlives the
-    // QueueFree at the bottom of HandleDeath. M4-1: only credits drop, so the
-    // table is built inline from MinCreditDrop/MaxCreditDrop. When key /
-    // consumable drops land in M4-2/M4-3, promote this to a LootTableResource
-    // authored on EnemyResource directly.
+    // Roll each drop row from this enemy's definition and spawn pickups under
+    // the enemy's parent (the room) so they outlive the QueueFree at the
+    // bottom of HandleDeath. M4-2 still uses one LootTable per row (credit
+    // and key are independent rolls). When M4-3's chest needs to pick
+    // *between* drop types, promote to a single weighted LootTable authored
+    // on EnemyResource directly.
     private void DropLoot()
     {
         if (Definition == null || _rng == null) return;
-        int min = Math.Max(0, Definition.MinCreditDrop);
-        int max = Math.Max(min, Definition.MaxCreditDrop);
-        if (max <= 0) return;
-
-        var table = new LootTable(new LootEntry("credit", Weight: 1, MinAmount: min, MaxAmount: max));
-        var roll = table.Roll(_rng);
-        if (roll == null || roll.Amount <= 0) return;
-
         var parent = GetParent();
         if (parent == null) return;
 
+        RollAndSpawn(Definition.MinCreditDrop, Definition.MaxCreditDrop, "credit", parent);
+        RollAndSpawn(Definition.MinKeyDrop, Definition.MaxKeyDrop, "key_generic", parent);
+    }
+
+    private void RollAndSpawn(int rawMin, int rawMax, string itemKey, Node parent)
+    {
+        if (_rng == null) return;
+        int min = Math.Max(0, rawMin);
+        int max = Math.Max(min, rawMax);
+        if (max <= 0) return;
+
+        var table = new LootTable(new LootEntry(itemKey, Weight: 1, MinAmount: min, MaxAmount: max));
+        var roll = table.Roll(_rng);
+        if (roll == null || roll.Amount <= 0) return;
+
+        // One pickup per unit so the visual fan-out reads as "this enemy
+        // dropped N of X." Each Spawn call pulls a fresh angle/speed pair from
+        // _rng, so pickups scatter independently without stacking on the corpse.
         switch (roll.ItemKey)
         {
             case "credit":
-                // One coin per credit — N pickups, each worth 1 — so the visual
-                // fan-out reads as "this enemy dropped N credits." Each call to
-                // Spawn pulls a fresh angle/speed pair from _rng, so the coins
-                // scatter independently without stacking on the corpse.
                 for (int i = 0; i < roll.Amount; i++)
                     CreditPickupNode.Spawn(parent, GlobalPosition, value: 1, _rng);
+                break;
+            case "key_generic":
+                for (int i = 0; i < roll.Amount; i++)
+                    KeyPickupNode.Spawn(parent, GlobalPosition, value: 1, _rng);
                 break;
         }
     }

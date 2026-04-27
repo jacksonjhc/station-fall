@@ -23,3 +23,5 @@ LungeRecoveryFrames = 22
 StaggerFrames = 10
 AttackCooldownSeconds = 1.25
 LosLostExpirySeconds = 2.0
+MinKeyDrop = 1
+MaxKeyDrop = 1

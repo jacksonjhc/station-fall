@@ -5,9 +5,12 @@ public static class HandBuiltLayouts
     public const string EntryRoomId = "entry";
     public const string WestHallRoomId = "west_hall";
     public const string FarRoomId = "far_room";
+    public const string VaultRoomId = "vault_room";
 
-    // M2 fixture: Entry —[open]→ WestHall —[enemy-locked]→ FarRoom.
-    // Enemy-locked door uses the M2 PressurePlate prop as its clear condition until M3 lands real enemies.
+    // M4-2 fixture: Entry —[open]→ WestHall —[enemy-locked]→ FarRoom —[key-locked]→ VaultRoom.
+    // Combat in WestHall drops a key from the patient; that key opens the
+    // FarRoom→VaultRoom door. VaultRoom is the reward beat (a few credits +
+    // a corpse for narrative seed).
     public static DungeonLayout M2Sandbox()
     {
         var entry = new RoomDescriptor(
@@ -36,10 +39,20 @@ public static class HandBuiltLayouts
             Doors: new Dictionary<CardinalDirection, DoorDescriptor>
             {
                 [CardinalDirection.West] = new DoorDescriptor(WestHallRoomId, DoorType.EnemyLocked),
+                [CardinalDirection.East] = new DoorDescriptor(VaultRoomId, DoorType.KeyLocked),
+            });
+
+        var vaultRoom = new RoomDescriptor(
+            Id: VaultRoomId,
+            Type: RoomType.Empty,
+            TemplateName: "VaultRoom",
+            Doors: new Dictionary<CardinalDirection, DoorDescriptor>
+            {
+                [CardinalDirection.West] = new DoorDescriptor(FarRoomId, DoorType.KeyLocked),
             });
 
         return new DungeonLayout(
-            Rooms: new[] { entry, westHall, farRoom },
+            Rooms: new[] { entry, westHall, farRoom, vaultRoom },
             EntryRoomId: EntryRoomId);
     }
 }

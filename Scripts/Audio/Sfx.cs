@@ -26,6 +26,7 @@ public partial class Sfx : Node
     private const string ImpactBellHeavyFmt = "res://Assets/Kenney/kenney_impact-sounds/Audio/impactBell_heavy_{0:D3}.ogg";
     private const string DodgePath = "res://Assets/Kenney/kenney_sci-fi-sounds/Audio/forceField_004.ogg";
     private const string PlayerDeathPath = "res://Assets/Kenney/kenney_sci-fi-sounds/Audio/explosionCrunch_004.ogg";
+    private const string DoorUnlockPath = "res://Assets/Kenney/kenney_sci-fi-sounds/Audio/doorOpen_001.ogg";
     private const int VariantCount = 5;
 
     private AudioStream?[] _hitLight = new AudioStream?[VariantCount];
@@ -34,6 +35,7 @@ public partial class Sfx : Node
     private AudioStream?[] _enemyDeath = new AudioStream?[VariantCount];
     private AudioStream? _dodge;
     private AudioStream? _playerDeath;
+    private AudioStream? _doorUnlock;
 
     private int _hitLightIdx;
     private int _hitHeavyIdx;
@@ -55,6 +57,7 @@ public partial class Sfx : Node
         LoadVariants(_enemyDeath, ImpactBellHeavyFmt);
         _dodge = ResourceLoader.Load<AudioStream>(DodgePath);
         _playerDeath = ResourceLoader.Load<AudioStream>(PlayerDeathPath);
+        _doorUnlock = ResourceLoader.Load<AudioStream>(DoorUnlockPath);
 
         // Per-event volume offsets: hits balanced quietest because they fire
         // most often during a combo; death loudest because it's a one-shot
@@ -83,6 +86,7 @@ public partial class Sfx : Node
     public void PlayDodge() => Play(_dodgeChannel, _dodge);
     public void PlayPlayerDeath() => Play(_deathChannel, _playerDeath);
     public void PlayEnemyDeath() => Play(_deathChannel, NextVariant(_enemyDeath, ref _enemyDeathIdx));
+    public void PlayDoorUnlock() => Play(_dodgeChannel, _doorUnlock);
 
     private static void LoadVariants(AudioStream?[] target, string pathFormat)
     {
