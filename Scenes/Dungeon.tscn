@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://Scripts/Items/KeysService.cs" id="14_keys"]
 [ext_resource type="Script" path="res://Scripts/UI/KeyCounter.cs" id="15_keycount"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/VaultRoom.tscn" id="scene_vault"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/RewardRoom.tscn" id="scene_reward"]
 
 [sub_resource type="RectangleShape2D" id="shape_player_body"]
 size = Vector2(44, 44)
@@ -35,6 +36,7 @@ EntryRoomScene = ExtResource("scene_entry")
 WestHallScene = ExtResource("scene_west")
 FarRoomScene = ExtResource("scene_far")
 VaultRoomScene = ExtResource("scene_vault")
+RewardRoomScene = ExtResource("scene_reward")
 
 [node name="Backdrop" type="ColorRect" parent="." unique_id=853251278]
 offset_left = -2000.0

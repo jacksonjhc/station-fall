@@ -23,7 +23,7 @@ public class DungeonLayoutTests
     public void RoomCount_ReflectsConstructor()
     {
         var layout = HandBuiltLayouts.M2Sandbox();
-        Assert.Equal(4, layout.RoomCount);
+        Assert.Equal(5, layout.RoomCount);
     }
 }
 

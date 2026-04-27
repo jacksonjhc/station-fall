@@ -6,11 +6,17 @@ public static class HandBuiltLayouts
     public const string WestHallRoomId = "west_hall";
     public const string FarRoomId = "far_room";
     public const string VaultRoomId = "vault_room";
+    public const string RewardRoomId = "reward_room";
 
-    // M4-2 fixture: Entry —[open]→ WestHall —[enemy-locked]→ FarRoom —[key-locked]→ VaultRoom.
-    // Combat in WestHall drops a key from the patient; that key opens the
-    // FarRoom→VaultRoom door. VaultRoom is the reward beat (a few credits +
-    // a corpse for narrative seed).
+    // M4-3 fixture:
+    //   Entry ─[open]─ WestHall ─[enemy-locked]─ FarRoom ─[key-locked]─ VaultRoom
+    //                                                │
+    //                                              [open]
+    //                                                │
+    //                                            RewardRoom (chest)
+    //
+    // Two distinct reward beats: vault (static credits behind a key door)
+    // and reward (chest behind a free door). FarRoom is the hub.
     public static DungeonLayout M2Sandbox()
     {
         var entry = new RoomDescriptor(
@@ -40,6 +46,7 @@ public static class HandBuiltLayouts
             {
                 [CardinalDirection.West] = new DoorDescriptor(WestHallRoomId, DoorType.EnemyLocked),
                 [CardinalDirection.East] = new DoorDescriptor(VaultRoomId, DoorType.KeyLocked),
+                [CardinalDirection.North] = new DoorDescriptor(RewardRoomId, DoorType.Open),
             });
 
         var vaultRoom = new RoomDescriptor(
@@ -51,8 +58,17 @@ public static class HandBuiltLayouts
                 [CardinalDirection.West] = new DoorDescriptor(FarRoomId, DoorType.KeyLocked),
             });
 
+        var rewardRoom = new RoomDescriptor(
+            Id: RewardRoomId,
+            Type: RoomType.Empty,
+            TemplateName: "RewardRoom",
+            Doors: new Dictionary<CardinalDirection, DoorDescriptor>
+            {
+                [CardinalDirection.South] = new DoorDescriptor(FarRoomId, DoorType.Open),
+            });
+
         return new DungeonLayout(
-            Rooms: new[] { entry, westHall, farRoom, vaultRoom },
+            Rooms: new[] { entry, westHall, farRoom, vaultRoom, rewardRoom },
             EntryRoomId: EntryRoomId);
     }
 }

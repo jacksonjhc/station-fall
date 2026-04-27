@@ -37,3 +37,13 @@ public record EnemySpawnerState(IReadOnlyList<string> DeadMarkerIds) : EntitySta
 {
     public override string Kind => "EnemySpawner";
 }
+
+// One-shot chest state. Once opened, stays opened for the rest of the run
+// (W7 sticky-open rule applied to props): re-entering the room shows the
+// chest in its open state with no loot to give. Only Opened is tracked —
+// the loot itself was rolled and emitted as separate pickups, which carry
+// their own PickupState entries.
+public record ChestState(bool Opened) : EntityState
+{
+    public override string Kind => "Chest";
+}
