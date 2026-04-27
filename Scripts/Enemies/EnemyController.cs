@@ -103,6 +103,21 @@ public partial class EnemyController : CharacterBody2D, IFreezable
             _attackHitbox.SetCurrentStep(BuildLungeStep(_config));
             _attackHitbox.SetActive(false);
         }
+
+        // Group membership lets the debug console killall/spawn-tracking
+        // enumerate live enemies without a recursive scene walk.
+        AddToGroup("enemies");
+    }
+
+    // Debug-only lethal damage path. Bypasses sensors/staggers and routes
+    // straight through HandleDeath so kill-all behaves identically to a
+    // normal death (Died signal fires → EnemySpawner clears the room).
+    public void KillFromDebug()
+    {
+        if (_snapshot.Phase == AiState.Dead) return;
+        _stats = _stats.WithHp(0);
+        _snapshot = _snapshot with { Phase = AiState.Dead };
+        HandleDeath();
     }
 
     public override void _PhysicsProcess(double delta)

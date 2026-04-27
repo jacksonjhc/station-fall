@@ -1,8 +1,10 @@
+using System.Linq;
 using Godot;
 using Stationfall.Core.Entities;
 using Stationfall.Core.ProcGen;
 using Stationfall.Core.Progression;
 using Stationfall.Core.Runs;
+using Stationfall.Godot.Enemies;
 using Stationfall.Godot.Persistence;
 using Stationfall.Godot.Player;
 using Stationfall.Godot.UI;
@@ -29,6 +31,8 @@ public partial class DungeonRoot : Node2D
     public string ActiveRoomId => _runState.Dungeon.ActiveRoomId;
     public IReadOnlySet<string> VisitedRoomIds => _runState.Dungeon.VisitedRoomIds;
     public MetaState Meta => _meta;
+    public RoomController? ActiveRoom => _activeRoom;
+    public PlayerController? Player => _player;
 
     // M3 will inject this from outside (vessel select → run start). For now,
     // construct a default Clone-vessel run so DungeonRoot owns its own state.
@@ -273,4 +277,59 @@ public partial class DungeonRoot : Node2D
         "FarRoom" => FarRoomScene,
         _ => null,
     };
+
+    // -------- Debug API --------
+    // Surfaces used by Scripts/Debug/DebugOverlay.cs. Intentionally narrow:
+    // public methods for the actions the console invokes, not blanket access
+    // to the internal lifecycle. Deferred so the room swap stays out of any
+    // physics-flush window it might be triggered from.
+
+    public IEnumerable<string> AllRoomIds => Layout.Rooms.Select(r => r.Id);
+
+    public void TeleportTo(string roomId)
+    {
+        if (!Layout.TryGetRoom(roomId, out _))
+        {
+            GD.PushWarning($"DungeonRoot: room id '{roomId}' not in layout");
+            return;
+        }
+        Callable.From(() => EnterRoom(roomId, fromDirection: null)).CallDeferred();
+    }
+
+    public void ClearActiveRoom()
+    {
+        if (_activeRoom == null) return;
+        var room = _activeRoom;
+        foreach (var node in GetTree().GetNodesInGroup("enemies"))
+        {
+            if (node is EnemyController enemy && room.IsAncestorOf(enemy))
+                enemy.KillFromDebug();
+        }
+        if (!room.IsCleared()) room.Clear();
+    }
+
+    public void KillAllEnemies()
+    {
+        foreach (var node in GetTree().GetNodesInGroup("enemies"))
+        {
+            if (node is EnemyController enemy) enemy.KillFromDebug();
+        }
+    }
+
+    public bool TrySpawnEnemy(EnemyResource definition, Vector2 globalPosition)
+    {
+        if (_activeRoom == null) return false;
+        if (definition.Scene == null)
+        {
+            GD.PushWarning($"DungeonRoot: enemy '{definition.Id}' has no Scene set");
+            return false;
+        }
+        var enemy = definition.Scene.Instantiate<EnemyController>();
+        enemy.Definition = definition;
+        enemy.GlobalPosition = globalPosition;
+        // Parent under the active room so the enemy tears down with the room
+        // on transition — same lifetime contract EnemySpawner enforces.
+        _activeRoom.AddChild(enemy);
+        return true;
+    }
 }

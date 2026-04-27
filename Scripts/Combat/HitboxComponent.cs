@@ -21,6 +21,9 @@ public partial class HitboxComponent : Area2D
     private CanvasItem? _visual;
     private float _forwardOffset;
     private readonly System.Collections.Generic.HashSet<HurtboxComponent> _alreadyHit = new();
+    private Polygon2D? _debugViz;
+    // Hitbox tinted red — distinguishes attack volumes from hurtboxes (cyan).
+    private static readonly Color DebugColor = new(1f, 0.3f, 0.3f, 0.35f);
 
     public override void _Ready()
     {
@@ -33,6 +36,19 @@ public partial class HitboxComponent : Area2D
         if (_shape != null) _shape.Disabled = true;
         if (_visual != null) _visual.Visible = false;
         AreaEntered += OnAreaEntered;
+
+        AddToGroup(CombatAreaDebug.Group);
+        if (CombatAreaDebug.DefaultVisible) SetDebugVisible(true);
+    }
+
+    public void SetDebugVisible(bool visible)
+    {
+        if (visible && _debugViz == null)
+        {
+            _debugViz = CombatAreaDebug.BuildPolygon(this, DebugColor);
+            if (_debugViz != null) AddChild(_debugViz);
+        }
+        if (_debugViz != null) _debugViz.Visible = visible;
     }
 
     public void SetActive(bool active)

@@ -100,6 +100,7 @@ mouse_filter = 2
 script = ExtResource("5_map")
 
 [node name="Debug" type="CanvasLayer" parent="." unique_id=2083984275]
+process_mode = 3
 script = ExtResource("6_debug")
 
 [node name="Panel" type="PanelContainer" parent="Debug" unique_id=1503183893]
@@ -114,3 +115,32 @@ offset_bottom = 84.0
 [node name="Status" type="Label" parent="Debug/Panel" unique_id=2041951250]
 layout_mode = 2
 text = "loading…"
+
+[node name="Console" type="PanelContainer" parent="Debug" unique_id=1837465920]
+visible = false
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -180.0
+offset_right = -16.0
+offset_bottom = -16.0
+mouse_filter = 1
+
+[node name="VBox" type="VBoxContainer" parent="Debug/Console" unique_id=1837465921]
+layout_mode = 2
+
+[node name="History" type="RichTextLabel" parent="Debug/Console/VBox" unique_id=1837465922]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = false
+fit_content = false
+scroll_active = true
+scroll_following = true
+text = ""
+
+[node name="Input" type="LineEdit" parent="Debug/Console/VBox" unique_id=1837465923]
+layout_mode = 2
+size_flags_vertical = 0
+placeholder_text = "type 'help' and press Enter — backtick (`) to close"

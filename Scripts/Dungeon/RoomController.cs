@@ -21,6 +21,12 @@ public partial class RoomController : Node2D
 
     public RoomLifecycle State { get; private set; } = RoomLifecycle.Unexplored;
 
+    public override void _Ready()
+    {
+        // Group membership lets the debug console enumerate rooms cheaply.
+        AddToGroup("rooms");
+    }
+
     public void OnPlayerEntered()
     {
         if (State != RoomLifecycle.Unexplored && State != RoomLifecycle.Entered) return;
