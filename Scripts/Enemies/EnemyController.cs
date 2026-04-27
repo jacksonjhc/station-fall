@@ -3,6 +3,7 @@ using Stationfall.Core.Ai;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
 using Stationfall.Core.Rng;
+using Stationfall.Godot.Audio;
 using Stationfall.Godot.Combat;
 
 namespace Stationfall.Godot.Enemies;
@@ -325,6 +326,9 @@ public partial class EnemyController : CharacterBody2D, IFreezable
         // Disable any further hits in or out before the node is freed.
         _attackHitbox?.SetActive(false);
         if (_hurtbox != null) _hurtbox.SetDeferred(Area2D.PropertyName.Monitoring, false);
+        Sfx.Instance?.PlayEnemyDeath();
+        // Smoke burst at the enemy center, drifting upward (negative Y).
+        HitBurstPool.Instance?.Burst(GlobalPosition, Vector2.Up, HitBurstPool.BurstKind.EnemyDeath);
         EmitSignal(SignalName.Died);
         QueueFree();
     }

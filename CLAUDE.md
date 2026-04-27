@@ -60,13 +60,20 @@ dotnet test src/Stationfall.Tests/ --filter "FullyQualifiedName~DungeonGenerator
 
 `Assets/Kenney/` is gitignored — the Kenney CC0 placeholder packs are re-procurable from [kenney.nl](https://kenney.nl/) and not redistributed in this repo. To run the game on a fresh clone:
 
-1. Download **kenney_top-down-shooter** from `https://kenney.nl/assets/top-down-shooter`.
-2. Extract so the path is `Assets/Kenney/kenney_top-down-shooter/PNG/...` (the pack zip extracts with that folder structure).
-3. Open `project.godot` in Godot 4.6 — the editor reimports textures on first load.
+Download these CC0 packs from kenney.nl and extract under `Assets/Kenney/` so the paths shown below resolve:
 
-Scene `ext_resource` lines reference textures by Godot UID, so once the files exist at the expected path the import resolves automatically. Without the pack, the game still launches but characters and tiles render as broken/missing-texture placeholders.
+| Pack | URL | Used for |
+|------|-----|----------|
+| **kenney_top-down-shooter** | https://kenney.nl/assets/top-down-shooter | Character + tile sprites |
+| **kenney_particle-pack** | https://kenney.nl/assets/particle-pack | Hit-burst and death-cloud particle textures |
+| **kenney_impact-sounds** | https://kenney.nl/assets/impact-sounds | Hit-landed and damage-taken SFX |
+| **kenney_sci-fi-sounds** | https://kenney.nl/assets/sci-fi-sounds | Dodge whoosh, player death |
 
-> Other Kenney packs may sit untracked under `Assets/Kenney/` locally as a personal library; only `kenney_top-down-shooter` is currently referenced by scenes. When a new pack starts being used, document it here and any contributor will know to grab it.
+Each pack zip extracts with its own top-level folder, so the resulting tree is `Assets/Kenney/<pack-name>/...`. Open `project.godot` in Godot 4.6 — the editor reimports textures and audio on first load.
+
+Scenes and scripts reference these resources by Godot UID and `res://` path. Once the files exist at the expected locations the import resolves automatically. Without the packs, the game still launches but characters / tiles render as broken-texture placeholders and audio cues are silent.
+
+> Other Kenney packs may sit untracked under `Assets/Kenney/` locally as a personal library; the table above is the authoritative list of what's actively referenced. When a new pack starts being used, add a row here.
 
 ## Architecture Rule
 

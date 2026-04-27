@@ -1,6 +1,7 @@
 using Godot;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
+using Stationfall.Godot.Audio;
 
 namespace Stationfall.Godot.Combat;
 
@@ -93,8 +94,34 @@ public partial class HitboxComponent : Area2D
         ApplyHitStop(Owner2D, CurrentStep.HitstopAttackerMs);
         ApplyHitStop(hurtbox.Owner2D, CurrentStep.HitstopTargetMs);
 
+        // Particles + sfx. Direction = attacker → victim so sparks fly through
+        // the impact. Spawn at the hurtbox center (or fall back to hurtbox area
+        // origin if Owner2D is missing). Hit-landed sfx fires only when the
+        // attacker is the player — enemy hits route through PlayerController
+        // .TakeDamage which plays its own damage-taken cue, and we don't want
+        // both stacked.
+        var hitPosition = hurtbox.Owner2D?.GlobalPosition ?? hurtbox.GlobalPosition;
+        var direction = ComputeImpactDirection(hurtbox);
+        bool attackerIsPlayer = Owner2D?.IsInGroup("player") == true;
+        var burstKind = CurrentStep.IsHeavy ? HitBurstPool.BurstKind.HitHeavy : HitBurstPool.BurstKind.HitLight;
+        HitBurstPool.Instance?.Burst(hitPosition, direction, burstKind);
+        if (attackerIsPlayer) Sfx.Instance?.PlayHitLanded(CurrentStep.IsHeavy);
+
         var target = hurtbox.Owner2D ?? hurtbox;
         EmitSignal(SignalName.HitLanded, target, result.Amount, result.ArmorBroken, result.Killed);
+    }
+
+    private Vector2 ComputeImpactDirection(HurtboxComponent hurtbox)
+    {
+        // Prefer the actual attacker → victim line. Falls back to the hitbox's
+        // forward direction (encoded in Position relative to attacker) when
+        // either owner is missing — mostly for tests and synthetic hits.
+        if (Owner2D != null && hurtbox.Owner2D != null)
+        {
+            var to = hurtbox.Owner2D.GlobalPosition - Owner2D.GlobalPosition;
+            if (to.LengthSquared() > 0.001f) return to.Normalized();
+        }
+        return Position.LengthSquared() > 0.001f ? Position.Normalized() : Vector2.Right;
     }
 
     private static void ApplyHitStop(Node2D? owner, int milliseconds)

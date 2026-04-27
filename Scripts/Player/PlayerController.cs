@@ -1,6 +1,7 @@
 using Godot;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
+using Stationfall.Godot.Audio;
 using Stationfall.Godot.Combat;
 using Stationfall.Godot.UI;
 
@@ -213,6 +214,7 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         ChangeState(PlayerState.Dodging);
         _stateFrame = 0;
         _camera?.AddTrauma(0.05f);
+        Sfx.Instance?.PlayDodge();
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
         var dir = input.LengthSquared() > 0.01f ? input.Normalized() : Facing;
         Facing = dir;
@@ -348,6 +350,12 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         // (Sword heavy finisher); revisit when more attack types ship.
         _camera?.AddTrauma(result.Amount >= 2 ? 0.50f : 0.25f);
 
+        // Damage-taken cue + red burst. Direction defaults upward (no attacker
+        // line-of-source on TakeDamage); the DamageTaken config has a wide
+        // spread so it reads as "hit landed on me" radiating outward.
+        Sfx.Instance?.PlayDamageTaken();
+        HitBurstPool.Instance?.Burst(GlobalPosition, Vector2.Up, HitBurstPool.BurstKind.DamageTaken);
+
         bool wasBuff = SignatureState.BuffActive;
         SignatureState = AdrenalineRushRule.OnDamageTaken(
             SignatureState, Stats, isStaggered: State == PlayerState.Staggered, _now, SignatureConfig);
@@ -357,6 +365,8 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         {
             ChangeState(PlayerState.Dead);
             _camera?.AddTrauma(0.80f);
+            Sfx.Instance?.PlayPlayerDeath();
+            HitBurstPool.Instance?.Burst(GlobalPosition, Vector2.Up, HitBurstPool.BurstKind.PlayerDeath);
             EmitSignal(SignalName.Died);
         }
     }

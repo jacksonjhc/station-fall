@@ -12,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/EntryRoom.tscn" id="scene_entry"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/FarRoom.tscn" id="scene_far"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/WestHall.tscn" id="scene_west"]
+[ext_resource type="Script" path="res://Scripts/Combat/HitBurstPool.cs" id="10_burst"]
+[ext_resource type="Script" path="res://Scripts/Audio/Sfx.cs" id="11_sfx"]
 
 [sub_resource type="RectangleShape2D" id="shape_player_body"]
 size = Vector2(44, 44)
@@ -98,6 +100,12 @@ offset_right = 280.0
 offset_bottom = 240.0
 mouse_filter = 2
 script = ExtResource("5_map")
+
+[node name="HitBurstPool" type="Node2D" parent="." unique_id=1923847561]
+script = ExtResource("10_burst")
+
+[node name="Sfx" type="Node" parent="." unique_id=1923847562]
+script = ExtResource("11_sfx")
 
 [node name="Debug" type="CanvasLayer" parent="." unique_id=2083984275]
 process_mode = 3
