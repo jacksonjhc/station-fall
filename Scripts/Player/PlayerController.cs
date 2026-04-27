@@ -2,6 +2,7 @@ using Godot;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
 using Stationfall.Godot.Combat;
+using Stationfall.Godot.UI;
 
 namespace Stationfall.Godot.Player;
 
@@ -15,7 +16,7 @@ public enum PlayerState
     Dead,
 }
 
-public partial class PlayerController : CharacterBody2D
+public partial class PlayerController : CharacterBody2D, IFreezable
 {
     [Signal] public delegate void HealthChangedEventHandler(int hp, int maxHp);
     [Signal] public delegate void DiedEventHandler();
@@ -26,6 +27,7 @@ public partial class PlayerController : CharacterBody2D
     [Export] public NodePath AttackHitboxPath { get; set; } = "AttackHitbox";
     [Export] public NodePath HurtboxPath { get; set; } = "Hurtbox";
     [Export] public NodePath VisualPath { get; set; } = "Visual";
+    [Export] public NodePath CameraPath { get; set; } = "Camera";
 
     // Vessel defaults to Clone for the M1 sandbox scene (BootstrapRoot has no
     // RunState to inject from). DungeonRoot calls Configure() with the vessel
@@ -44,6 +46,10 @@ public partial class PlayerController : CharacterBody2D
     private const float PhysicsFps = 60f;
     private double _now;
     private int _stateFrame;
+    // Hit-stop: wall-clock deadline (Godot ticks-msec) until which _PhysicsProcess
+    // early-returns. Wall-clock so the freeze doesn't depend on _now, which
+    // we deliberately stop advancing during the freeze.
+    private ulong _frozenUntilTicksMsec;
     private double _dodgeRechargeUntil;
     private int _comboIndex;
     private double _comboResetAt;
@@ -52,6 +58,7 @@ public partial class PlayerController : CharacterBody2D
     private HitboxComponent? _attackHitbox;
     private HurtboxComponent? _hurtbox;
     private Node2D? _visual;
+    private GameCamera? _camera;
 
     public PlayerController()
     {
@@ -71,8 +78,10 @@ public partial class PlayerController : CharacterBody2D
         {
             _attackHitbox.SetActive(false);
             _attackHitbox.Owner2D = this;
-            _attackHitbox.HitLanded += (_, _, _, _) => NotifyHitLanded();
+            _attackHitbox.HitLanded += OnAttackHitLanded;
         }
+
+        _camera = GetNodeOrNull<GameCamera>(CameraPath);
 
         _hurtbox = GetNodeOrNull<HurtboxComponent>(HurtboxPath);
         if (_hurtbox != null)
@@ -116,6 +125,8 @@ public partial class PlayerController : CharacterBody2D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (IsFrozen()) return;
+
         _now += delta;
         _stateFrame++;
 
@@ -148,6 +159,17 @@ public partial class PlayerController : CharacterBody2D
                 MoveAndSlide();
                 break;
         }
+
+        ApplyIFrameTint();
+    }
+
+    // Cyan tint while i-frames are live so the dodge punish window (last 3
+    // recovery frames per W2) reads as visibly different from the safe window.
+    private static readonly Color IFrameTint = new(0.6f, 0.9f, 1.0f);
+    private void ApplyIFrameTint()
+    {
+        if (_visual is not CanvasItem ci) return;
+        ci.Modulate = HasIFramesNow() ? IFrameTint : Colors.White;
     }
 
     // Returns true if the input switched state out of Idle/Moving — caller must skip ApplyMovement,
@@ -190,6 +212,7 @@ public partial class PlayerController : CharacterBody2D
     {
         ChangeState(PlayerState.Dodging);
         _stateFrame = 0;
+        _camera?.AddTrauma(0.05f);
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
         var dir = input.LengthSquared() > 0.01f ? input.Normalized() : Facing;
         Facing = dir;
@@ -214,6 +237,17 @@ public partial class PlayerController : CharacterBody2D
 
     public bool HasIFramesNow() =>
         State == PlayerState.Dodging && DodgeProfile.HasIFramesAt(_stateFrame);
+
+    public bool IsFrozen() => Time.GetTicksMsec() < _frozenUntilTicksMsec;
+
+    // Hit-stop entry. Idempotent against shorter freezes — call sites can pile
+    // up smaller values without truncating an in-flight bigger freeze.
+    public void Freeze(double seconds)
+    {
+        if (seconds <= 0) return;
+        ulong target = Time.GetTicksMsec() + (ulong)(seconds * 1000.0);
+        if (target > _frozenUntilTicksMsec) _frozenUntilTicksMsec = target;
+    }
 
     private void EnterAttack()
     {
@@ -286,6 +320,17 @@ public partial class PlayerController : CharacterBody2D
         DeactivateHitbox();
     }
 
+    // Light hits trauma'd down from W2's 0.15 to 0.10 — playtest-tunable.
+    // Heavy combo finishers stay at the original 0.30: those are the "the
+    // hit landed hard" moments. When crits land (post-slice), they should
+    // ride heavy-tier trauma even on a light combo step.
+    private void OnAttackHitLanded(Node2D target, int amount, bool armorBroken, bool killed)
+    {
+        NotifyHitLanded();
+        bool heavy = Weapon.StepAt(_comboIndex).IsHeavy;
+        _camera?.AddTrauma(heavy ? 0.30f : 0.10f);
+    }
+
     public void TakeDamage(DamageResult result)
     {
         if (GodMode || State == PlayerState.Dead) return;
@@ -297,6 +342,12 @@ public partial class PlayerController : CharacterBody2D
         Stats = Stats.ApplyDamage(result);
         EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
 
+        // Per W2 trauma table: damage taken (1 HP) 0.25, heavy hit taken 0.50.
+        // No "heavy attack taken" data on DamageResult yet — bracket via amount
+        // for now. Threshold of 2 covers the only multi-damage source today
+        // (Sword heavy finisher); revisit when more attack types ship.
+        _camera?.AddTrauma(result.Amount >= 2 ? 0.50f : 0.25f);
+
         bool wasBuff = SignatureState.BuffActive;
         SignatureState = AdrenalineRushRule.OnDamageTaken(
             SignatureState, Stats, isStaggered: State == PlayerState.Staggered, _now, SignatureConfig);
@@ -305,6 +356,7 @@ public partial class PlayerController : CharacterBody2D
         if (Stats.Hp <= 0)
         {
             ChangeState(PlayerState.Dead);
+            _camera?.AddTrauma(0.80f);
             EmitSignal(SignalName.Died);
         }
     }

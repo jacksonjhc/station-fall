@@ -14,7 +14,7 @@ namespace Stationfall.Godot.Enemies;
 //
 // Collision layers/masks: see Scripts/Combat/CollisionLayers.cs for the
 // project-wide bit assignments referenced by both .tscn files and code.
-public partial class EnemyController : CharacterBody2D
+public partial class EnemyController : CharacterBody2D, IFreezable
 {
     [Signal] public delegate void DiedEventHandler();
 
@@ -32,6 +32,9 @@ public partial class EnemyController : CharacterBody2D
     private EnemyAiSnapshot _snapshot = EnemyAiSnapshot.Initial;
     private EntityStats _stats;
     private double _now;
+    // Hit-stop: wall-clock deadline (Godot ticks-msec). While frozen, brain tick
+    // and movement are skipped so the enemy visibly stalls on impact.
+    private ulong _frozenUntilTicksMsec;
     private CharacterBody2D? _player;
     private Node2D? _bodyVisual;
     private HurtboxComponent? _hurtbox;
@@ -104,6 +107,14 @@ public partial class EnemyController : CharacterBody2D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (IsFrozen())
+        {
+            // Don't advance _now or tick the brain during hit-stop; the impact
+            // moment freezes everything. Visual flash continues on its own clock.
+            ApplyVisual();
+            return;
+        }
+
         _now += delta;
 
         if (_snapshot.Phase == AiState.Dead) return;
@@ -242,8 +253,24 @@ public partial class EnemyController : CharacterBody2D
         }
         else
         {
-            // Recovery — locked, hitbox off. Long window per W3: "the punish window".
+            // Recovery — long punish window per W3, hitbox off. The lunge can
+            // end with the patient overlapping the player; if we just hold
+            // Velocity=0 here, the player's MoveAndSlide depenetration carries
+            // the patient along when the player walks away ("the enemy is
+            // glued to me"). Gentle backoff during recovery breaks the overlap
+            // and reads as the lunge over-extending.
             Velocity = Vector2.Zero;
+            if (_player != null)
+            {
+                var to = _player.GlobalPosition - GlobalPosition;
+                float dist = to.Length();
+                float separation = _config.MeleeAttackRangePx * 0.7f;
+                if (dist < separation)
+                {
+                    var awayDir = dist > 0.001f ? -to / dist : -_lungeDirection;
+                    Velocity = awayDir * 40f;
+                }
+            }
             MoveAndSlide();
             _attackHitbox?.SetActive(false);
         }
@@ -267,6 +294,15 @@ public partial class EnemyController : CharacterBody2D
             // Stagger interrupts an in-flight attack — make sure the hitbox stops dealing damage.
             _attackHitbox?.SetActive(false);
         }
+    }
+
+    public bool IsFrozen() => Time.GetTicksMsec() < _frozenUntilTicksMsec;
+
+    public void Freeze(double seconds)
+    {
+        if (seconds <= 0) return;
+        ulong target = Time.GetTicksMsec() + (ulong)(seconds * 1000.0);
+        if (target > _frozenUntilTicksMsec) _frozenUntilTicksMsec = target;
     }
 
     private void HandleDeath()
@@ -322,9 +358,9 @@ public partial class EnemyController : CharacterBody2D
         ActiveFrames: cfg.LungeActiveFrames,
         RecoveryFrames: cfg.LungeRecoveryFrames,
         Damage: cfg.AttackDamage,
-        // M3.5 will land hit-stop tuning. 0 means no pause, which reads as floaty —
-        // acceptable for M3-2's "you can read the lunge and dodge it" goal.
-        HitstopTargetMs: 0,
-        HitstopAttackerMs: 0,
+        // Committed lunge — heavier than a Sword light tap (60/30) but lighter
+        // than a Sword heavy finisher (120/60). Playtest-tunable.
+        HitstopTargetMs: 100,
+        HitstopAttackerMs: 50,
         IsHeavy: false);
 }

@@ -71,7 +71,19 @@ public partial class HitboxComponent : Area2D
         var defenderStats = hurtbox.GetCurrentStats();
         var result = DamageCalculator.Calculate(AttackerStats, defenderStats, CurrentStep, Modifiers);
         hurtbox.ReceiveHit(result, this);
+
+        // Hit-stop. Per W2: target freeze is 2× attacker freeze; both are
+        // configurable on ComboStep. Owners implement IFreezable.
+        ApplyHitStop(Owner2D, CurrentStep.HitstopAttackerMs);
+        ApplyHitStop(hurtbox.Owner2D, CurrentStep.HitstopTargetMs);
+
         var target = hurtbox.Owner2D ?? hurtbox;
         EmitSignal(SignalName.HitLanded, target, result.Amount, result.ArmorBroken, result.Killed);
+    }
+
+    private static void ApplyHitStop(Node2D? owner, int milliseconds)
+    {
+        if (milliseconds <= 0) return;
+        if (owner is IFreezable freezable) freezable.Freeze(milliseconds / 1000.0);
     }
 }

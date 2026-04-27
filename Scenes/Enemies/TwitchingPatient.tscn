@@ -16,7 +16,7 @@ size = Vector2(56, 40)
 
 [node name="TwitchingPatient" type="CharacterBody2D"]
 collision_layer = 64
-collision_mask = 17
+collision_mask = 81
 script = ExtResource("1_ctrl")
 
 [node name="Visual" type="Sprite2D" parent="."]

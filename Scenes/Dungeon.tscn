@@ -3,14 +3,15 @@
 [ext_resource type="Script" uid="uid://8rxctwauwwuw" path="res://Scripts/Dungeon/DungeonRoot.cs" id="1_root"]
 [ext_resource type="Script" uid="uid://dmfpvxtsuhpr4" path="res://Scripts/Player/PlayerController.cs" id="2_player"]
 [ext_resource type="Script" uid="uid://dor6yrfb31kou" path="res://Scripts/Combat/HitboxComponent.cs" id="3_hit"]
-[ext_resource type="Script" path="res://Scripts/Combat/HurtboxComponent.cs" id="7_hurt"]
 [ext_resource type="Script" uid="uid://b8ctgsmnfkgha" path="res://Scripts/UI/HealthBar.cs" id="4_hp"]
 [ext_resource type="Script" uid="uid://b2x6frj06i70t" path="res://Scripts/UI/Minimap.cs" id="5_map"]
 [ext_resource type="Script" uid="uid://cfksvw3r1c7vm" path="res://Scripts/Debug/DebugOverlay.cs" id="6_debug"]
+[ext_resource type="Script" uid="uid://05y6u46jnc51" path="res://Scripts/Combat/HurtboxComponent.cs" id="7_hurt"]
+[ext_resource type="Texture2D" uid="uid://cpifbvoij7i4k" path="res://Assets/Kenney/kenney_top-down-shooter/PNG/Survivor 1/survivor1_stand.png" id="8_survivor"]
+[ext_resource type="Script" uid="uid://dn6nhysym6w15" path="res://Scripts/UI/GameCamera.cs" id="9_camera"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/EntryRoom.tscn" id="scene_entry"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/FarRoom.tscn" id="scene_far"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/WestHall.tscn" id="scene_west"]
-[ext_resource type="Texture2D" uid="uid://cpifbvoij7i4k" path="res://Assets/Kenney/kenney_top-down-shooter/PNG/Survivor 1/survivor1_stand.png" id="8_survivor"]
 
 [sub_resource type="RectangleShape2D" id="shape_player_body"]
 size = Vector2(44, 44)
@@ -38,7 +39,6 @@ color = Color(0.04, 0.05, 0.07, 1)
 [node name="RoomSlot" type="Node2D" parent="." unique_id=1440798529]
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1863678489 groups=["player"]]
-collision_layer = 1
 collision_mask = 80
 script = ExtResource("2_player")
 
@@ -65,17 +65,17 @@ visible = false
 color = Color(1, 0.85, 0.3, 0.7)
 polygon = PackedVector2Array(-32, -20, 32, -20, 32, 20, -32, 20)
 
-[node name="Hurtbox" type="Area2D" parent="Player" unique_id=4029104461]
+[node name="Hurtbox" type="Area2D" parent="Player" unique_id=-265862835]
 collision_layer = 128
 collision_mask = 0
 script = ExtResource("7_hurt")
 
-[node name="HurtShape" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=4029104462]
+[node name="HurtShape" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=-265862834]
 shape = SubResource("shape_player_hurt")
 
 [node name="Camera" type="Camera2D" parent="Player" unique_id=1109074760]
-position_smoothing_enabled = true
 position_smoothing_speed = 8.0
+script = ExtResource("9_camera")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=940627439]
 
