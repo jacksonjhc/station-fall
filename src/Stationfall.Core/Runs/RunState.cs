@@ -1,3 +1,4 @@
+using Stationfall.Core.Currency;
 using Stationfall.Core.Entities;
 
 namespace Stationfall.Core.Runs;
@@ -8,6 +9,7 @@ public class RunState
     public PlayerVessel Vessel { get; }
     public int Floor { get; private set; } = 1;
     public DungeonState Dungeon { get; } = new();
+    public CreditWallet Credits { get; } = new();
     public IReadOnlyList<string> NarrativeFlags => _narrativeFlags.AsReadOnly();
 
     private readonly List<string> _narrativeFlags = [];

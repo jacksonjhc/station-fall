@@ -5,6 +5,7 @@ using Stationfall.Core.ProcGen;
 using Stationfall.Core.Progression;
 using Stationfall.Core.Runs;
 using Stationfall.Godot.Enemies;
+using Stationfall.Godot.Items;
 using Stationfall.Godot.Persistence;
 using Stationfall.Godot.Player;
 using Stationfall.Godot.UI;
@@ -70,6 +71,11 @@ public partial class DungeonRoot : Node2D
         }
 
         if (_minimap != null) _minimap.SetLayout(Layout);
+
+        // Bind run currency to the HUD-facing service. Deferred so listeners
+        // (HUD CreditCounter) that subscribe in their own _Ready see the
+        // initial balance via the BalanceChanged emit.
+        CreditsService.Instance?.Bind(_runState);
 
         EnterRoom(Layout.EntryRoomId, fromDirection: null);
     }

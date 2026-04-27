@@ -38,6 +38,13 @@ public partial class EnemyResource : Resource
     [Export] public float AttackCooldownSeconds { get; set; } = 1.25f;
     [Export] public float LosLostExpirySeconds { get; set; } = 2.0f;
 
+    // Drop range on death. Inclusive on both ends; equal Min/Max → fixed drop.
+    // Set Max=0 to disable drops entirely. Full multi-item loot tables (keys,
+    // consumables) come in M4-2; for now a single weighted "credit" entry is
+    // built from these fields when the enemy dies.
+    [Export] public int MinCreditDrop { get; set; } = 1;
+    [Export] public int MaxCreditDrop { get; set; } = 3;
+
     public TwitchingPatientConfig ToBrainConfig() => new(
         MaxHp: MaxHp,
         AttackDamage: AttackDamage,

@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://m4creditpickup1"]
+
+[ext_resource type="Script" path="res://Scripts/Items/CreditPickupNode.cs" id="1_pickup"]
+[ext_resource type="Texture2D" uid="uid://c2uj2k6y7ynq8" path="res://Assets/Kenney/kenney_game-icons-expansion/PNG/White/1x/coin.png" id="2_coin"]
+
+[sub_resource type="CircleShape2D" id="shape_pickup"]
+radius = 12.0
+
+[node name="CreditPickup" type="Area2D"]
+script = ExtResource("1_pickup")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+scale = Vector2(0.7, 0.7)
+texture = ExtResource("2_coin")
+modulate = Color(1.0, 0.85, 0.25, 1.0)
+
+[node name="Shape" type="CollisionShape2D" parent="."]
+shape = SubResource("shape_pickup")
