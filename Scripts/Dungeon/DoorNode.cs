@@ -67,6 +67,21 @@ public partial class DoorNode : Area2D
         if (_sealShape != null) _sealShape.Disabled = true;
     }
 
+    // Called when the room scene has a door slot at this direction but the
+    // layout descriptor doesn't list one — i.e. a 4-door template placed where
+    // only some walls have neighbours. Visuals off, no body_entered events,
+    // and the wall-plug collider engaged so the player can't walk through the
+    // missing door's gap into nothing.
+    public void HideAndSeal()
+    {
+        Visible = false;
+        SetDeferred(Area2D.PropertyName.Monitoring, false);
+        if (_sealVisual != null) _sealVisual.Visible = false;
+        if (_openVisual != null) _openVisual.Visible = false;
+        if (_sealShape != null)
+            _sealShape.SetDeferred(CollisionShape2D.PropertyName.Disabled, false);
+    }
+
     public void Configure(DoorType type, bool keyLockConsumed = false)
     {
         Type = type;

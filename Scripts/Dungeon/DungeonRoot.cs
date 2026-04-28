@@ -34,7 +34,7 @@ public partial class DungeonRoot : Node2D
     // (Combat_Generic, Item_Generic, etc.). Empty by default — populated in
     // .tscn when M5-5 swaps in generated layouts. The hand-built [Export]
     // slots above merge in alongside these entries on _Ready.
-    [Export] public Godot.Collections.Dictionary<string, PackedScene> AdditionalRoomTemplates { get; set; } = new();
+    [Export] public global::Godot.Collections.Dictionary<string, PackedScene> AdditionalRoomTemplates { get; set; } = new();
 
     public DungeonLayout Layout { get; private set; } = HandBuiltLayouts.M2Sandbox();
     public RunState State => _runState;
@@ -275,9 +275,11 @@ public partial class DungeonRoot : Node2D
             }
             else
             {
-                // Door slot exists in the room scene but the descriptor has nothing at that wall — hide it.
-                node.Visible = false;
-                node.Monitoring = false;
+                // Door slot exists in the room scene but the descriptor has
+                // nothing at that wall. Hide visuals, drop the trigger, AND
+                // engage the seal collider so the wall gap is closed — without
+                // the seal, the player walks through the missing door's hole.
+                node.HideAndSeal();
             }
         }
     }
