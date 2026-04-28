@@ -73,6 +73,7 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     private GameCamera? _camera;
     private MagneticGrappleTool? _grappleTool;
     public ToolKind? EquippedToolKind { get; private set; }
+    public MagneticGrappleTool? GrappleTool => _grappleTool;
 
     public PlayerController()
     {

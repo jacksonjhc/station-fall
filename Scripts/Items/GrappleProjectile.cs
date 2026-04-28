@@ -117,6 +117,7 @@ public partial class GrappleProjectile : Area2D
         IsResolved = true;
         Payload = payload;
         SetDeferred(Area2D.PropertyName.Monitoring, false);
+        GD.Print($"[grapple] hit {payload.MassClass} ({payload.Target?.Name ?? "(no node)"}) at {payload.HitPosition}");
         EmitSignal(SignalName.Resolved);
         QueueFree();
     }
@@ -126,6 +127,7 @@ public partial class GrappleProjectile : Area2D
         IsResolved = true;
         Payload = new AttachPayload(MassClass.Immovable, null, at);
         SetDeferred(Area2D.PropertyName.Monitoring, false);
+        GD.Print($"[grapple] miss at {at}");
         EmitSignal(SignalName.Resolved);
         QueueFree();
     }

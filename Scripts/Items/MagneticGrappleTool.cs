@@ -33,6 +33,20 @@ public partial class MagneticGrappleTool : Node2D
 
     public MagneticGrappleConfig Config { get; private set; } = MagneticGrappleConfig.Default;
 
+    // 0 while on cooldown right after firing, 1 once ready. HUD widgets poll
+    // this each frame to draw the cooldown sweep / readiness tint.
+    public float CooldownRatio
+    {
+        get
+        {
+            if (Config.CooldownSeconds <= 0f) return 1f;
+            float remaining = (float)System.Math.Max(0.0, _state.CooldownEndsAtSeconds - _now);
+            return 1f - System.Math.Clamp(remaining / Config.CooldownSeconds, 0f, 1f);
+        }
+    }
+    public double CooldownSecondsRemaining => System.Math.Max(0.0, _state.CooldownEndsAtSeconds - _now);
+    public bool IsReady => _now >= _state.CooldownEndsAtSeconds && _phase == Phase.Idle;
+
     private PlayerController? _player;
     private MagneticGrappleState _state = MagneticGrappleState.Initial;
     private Phase _phase = Phase.Idle;
