@@ -23,6 +23,8 @@ public class DungeonGeneratorTests
             Assert.Equal(ra.Id, rb.Id);
             Assert.Equal(ra.Type, rb.Type);
             Assert.Equal(ra.TemplateName, rb.TemplateName);
+            Assert.Equal(ra.ContentTier, rb.ContentTier);
+            Assert.Equal(ra.ContainsKey, rb.ContainsKey);
             Assert.Equal(ra.Doors.Count, rb.Doors.Count);
             foreach (var (dir, door) in ra.Doors)
             {
@@ -105,26 +107,43 @@ public class DungeonGeneratorTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Generate_AllDoorsAreOpen(int seed)
+    public void Generate_LocksOnlyTheBossApproach(int seed)
     {
-        // M5-1 doesn't place locks — that's M5-2's responsibility.
+        // After M5-2, exactly one bidirectional door is KeyLocked (the boss
+        // approach). Counting directed entries: that's 2 KeyLocked, rest Open.
         var layout = DungeonGenerator.Generate(seed);
+        var locked = 0;
         foreach (var room in layout.Rooms)
             foreach (var (_, door) in room.Doors)
-                Assert.Equal(DoorType.Open, door.Type);
+            {
+                Assert.True(door.Type == DoorType.Open || door.Type == DoorType.KeyLocked,
+                    $"seed {seed}: unexpected door type {door.Type}");
+                if (door.Type == DoorType.KeyLocked) locked++;
+            }
+        Assert.Equal(2, locked);
     }
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Generate_NonEntryRoomsAreEmptyType(int seed)
+    public void Generate_RoomTypesAreEntryBossItemVendorOrCombat(int seed)
     {
-        // M5-1 doesn't assign branch-room types — that's M5-2's responsibility.
+        // Default options should produce exactly one each of Entry/Boss/Item/Vendor;
+        // every other room is Combat. Empty is reserved — M5-2 doesn't emit it.
         var layout = DungeonGenerator.Generate(seed);
+        var counts = new Dictionary<RoomType, int>();
         foreach (var room in layout.Rooms)
-        {
-            if (room.Id == layout.EntryRoomId) continue;
-            Assert.Equal(RoomType.Empty, room.Type);
-        }
+            counts[room.Type] = counts.GetValueOrDefault(room.Type) + 1;
+
+        Assert.Equal(1, counts.GetValueOrDefault(RoomType.Entry));
+        Assert.Equal(1, counts.GetValueOrDefault(RoomType.Boss));
+        Assert.Equal(1, counts.GetValueOrDefault(RoomType.Item));
+        Assert.Equal(1, counts.GetValueOrDefault(RoomType.Vendor));
+        Assert.Equal(0, counts.GetValueOrDefault(RoomType.Empty));
+        Assert.Equal(0, counts.GetValueOrDefault(RoomType.Secret));
+        Assert.Equal(0, counts.GetValueOrDefault(RoomType.MidBoss));
+        Assert.Equal(0, counts.GetValueOrDefault(RoomType.Narrative));
+        var combat = counts.GetValueOrDefault(RoomType.Combat);
+        Assert.Equal(layout.RoomCount - 4, combat);
     }
 
     [Fact]
@@ -254,7 +273,171 @@ public class DungeonGeneratorTests
             DungeonGenerator.Generate(0, new DungeonGeneratorOptions(BackEdgeProbability: probability)));
     }
 
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_BossIsAtMaxBfsDistanceFromEntry(int seed)
+    {
+        var layout = DungeonGenerator.Generate(seed);
+        var boss = layout.Rooms.Single(r => r.Type == RoomType.Boss);
+        var distances = BfsDistancesIgnoringLocks(layout, layout.EntryRoomId);
+        var maxDist = distances.Values.Max();
+        Assert.Equal(maxDist, distances[boss.Id]);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_BossIsALeaf(int seed)
+    {
+        // The lock has to be a chokepoint — Boss must have exactly one door.
+        var layout = DungeonGenerator.Generate(seed);
+        var boss = layout.Rooms.Single(r => r.Type == RoomType.Boss);
+        Assert.Single(boss.Doors);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_BossApproachDoorIsKeyLocked(int seed)
+    {
+        var layout = DungeonGenerator.Generate(seed);
+        var boss = layout.Rooms.Single(r => r.Type == RoomType.Boss);
+        var (_, approachDoor) = boss.Doors.Single();
+        Assert.Equal(DoorType.KeyLocked, approachDoor.Type);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_ExactlyOneRoomContainsTheKey(int seed)
+    {
+        var layout = DungeonGenerator.Generate(seed);
+        Assert.Equal(1, layout.Rooms.Count(r => r.ContainsKey));
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_KeyRoomIsReachableWithoutCrossingTheLock(int seed)
+    {
+        // BFS that refuses to traverse KeyLocked doors must still reach the
+        // key-bearing room. Otherwise the player can't pick up the key without
+        // already having spent it — soft-lock.
+        var layout = DungeonGenerator.Generate(seed);
+        var keyRoom = layout.Rooms.Single(r => r.ContainsKey);
+        var reachable = BfsReachableSkippingLocks(layout, layout.EntryRoomId);
+        Assert.Contains(keyRoom.Id, reachable);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_ItemRoomReachableWithoutCrossingTheLock(int seed)
+    {
+        var layout = DungeonGenerator.Generate(seed);
+        var itemRoom = layout.Rooms.Single(r => r.Type == RoomType.Item);
+        var reachable = BfsReachableSkippingLocks(layout, layout.EntryRoomId);
+        Assert.Contains(itemRoom.Id, reachable);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_VendorRoomReachableWithoutCrossingTheLock(int seed)
+    {
+        var layout = DungeonGenerator.Generate(seed);
+        var vendorRoom = layout.Rooms.Single(r => r.Type == RoomType.Vendor);
+        var reachable = BfsReachableSkippingLocks(layout, layout.EntryRoomId);
+        Assert.Contains(vendorRoom.Id, reachable);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_BossIsUnreachableWithoutCrossingTheLock(int seed)
+    {
+        // The whole point of the lock: Boss must be on the far side. If a
+        // back-edge slipped through to make Boss reachable via open doors,
+        // IsolateBoss is broken.
+        var layout = DungeonGenerator.Generate(seed);
+        var boss = layout.Rooms.Single(r => r.Type == RoomType.Boss);
+        var reachable = BfsReachableSkippingLocks(layout, layout.EntryRoomId);
+        Assert.DoesNotContain(boss.Id, reachable);
+    }
+
+    [Theory]
+    [InlineData(ContentTier.Onboarding)]
+    [InlineData(ContentTier.Standard)]
+    [InlineData(ContentTier.Escalated)]
+    [InlineData(ContentTier.TruePath)]
+    public void Generate_TagsEveryRoomWithRequestedContentTier(ContentTier tier)
+    {
+        var options = new DungeonGeneratorOptions(ContentTier: tier);
+        for (var seed = 0; seed < 20; seed++)
+        {
+            var layout = DungeonGenerator.Generate(seed, options);
+            foreach (var room in layout.Rooms)
+                Assert.Equal(tier, room.ContentTier);
+        }
+    }
+
+    [Fact]
+    public void Generate_PlaceBossKeyLockFalse_ShipsLockless()
+    {
+        var options = new DungeonGeneratorOptions(PlaceBossKeyLock: false);
+        for (var seed = 0; seed < 20; seed++)
+        {
+            var layout = DungeonGenerator.Generate(seed, options);
+            foreach (var room in layout.Rooms)
+                foreach (var (_, door) in room.Doors)
+                    Assert.Equal(DoorType.Open, door.Type);
+        }
+    }
+
+    [Fact]
+    public void Generate_RejectsNegativeBranchCounts()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            DungeonGenerator.Generate(0, new DungeonGeneratorOptions(ItemRoomCount: -1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            DungeonGenerator.Generate(0, new DungeonGeneratorOptions(VendorRoomCount: -1)));
+    }
+
     public static IEnumerable<object[]> Seeds() => SampleSeeds.Select(s => new object[] { s });
+
+    private static Dictionary<string, int> BfsDistancesIgnoringLocks(DungeonLayout layout, string fromId)
+    {
+        // Distances over the full door graph — used for the Boss-depth check,
+        // where we want to know how far Boss sits in the underlying graph
+        // including the locked approach door.
+        var dist = new Dictionary<string, int> { [fromId] = 0 };
+        var queue = new Queue<string>();
+        queue.Enqueue(fromId);
+        while (queue.Count > 0)
+        {
+            var id = queue.Dequeue();
+            var room = layout.GetRoom(id);
+            foreach (var (_, door) in room.Doors)
+            {
+                if (dist.ContainsKey(door.TargetRoomId)) continue;
+                dist[door.TargetRoomId] = dist[id] + 1;
+                queue.Enqueue(door.TargetRoomId);
+            }
+        }
+        return dist;
+    }
+
+    private static HashSet<string> BfsReachableSkippingLocks(DungeonLayout layout, string fromId)
+    {
+        // Reachability over Open doors only — models "what can the player
+        // visit before they have a key?".
+        var seen = new HashSet<string> { fromId };
+        var queue = new Queue<string>();
+        queue.Enqueue(fromId);
+        while (queue.Count > 0)
+        {
+            var room = layout.GetRoom(queue.Dequeue());
+            foreach (var (_, door) in room.Doors)
+            {
+                if (door.Type != DoorType.Open) continue;
+                if (seen.Add(door.TargetRoomId)) queue.Enqueue(door.TargetRoomId);
+            }
+        }
+        return seen;
+    }
 
     private static string LayoutSignature(DungeonLayout layout)
     {
