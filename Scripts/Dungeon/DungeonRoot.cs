@@ -30,13 +30,27 @@ public partial class DungeonRoot : Node2D
     [Export] public PackedScene? RewardRoomScene { get; set; }
     [Export] public PackedScene? VendorRoomScene { get; set; }
 
-    // M5-4: data-driven template registry for layouts the generator produces
-    // (Combat_Generic, Item_Generic, etc.). Empty by default — populated in
-    // .tscn when M5-5 swaps in generated layouts. The hand-built [Export]
-    // slots above merge in alongside these entries on _Ready.
+    // M5-5: variants the generator emits. Names match TemplatePool.Default.
+    // Drag the corresponding scenes onto these slots in the editor; toggling
+    // UseGeneratedLayout flips the run from M2Sandbox to a generated graph.
+    [Export] public PackedScene? EntryGenericScene { get; set; }
+    [Export] public PackedScene? CombatGenericScene { get; set; }
+    [Export] public PackedScene? ItemGenericScene { get; set; }
+    [Export] public PackedScene? VendorGenericScene { get; set; }
+    [Export] public PackedScene? BossGenericScene { get; set; }
+
+    // M5-5 toggle: false → M2Sandbox (existing behaviour, M2-specific scenes
+    // wired above); true → DungeonGenerator.Generate(_runState.Seed) plus the
+    // *_Generic scenes. M2Sandbox stays available as a debug fixture.
+    [Export] public bool UseGeneratedLayout { get; set; }
+
+    // Open-ended override slot for sectors with their own template names.
+    // Empty by default; the M2Sandbox + generic [Export] slots above cover
+    // the slice. Merged into the registry alongside them on _Ready.
     [Export] public global::Godot.Collections.Dictionary<string, PackedScene> AdditionalRoomTemplates { get; set; } = new();
 
     public DungeonLayout Layout { get; private set; } = HandBuiltLayouts.M2Sandbox();
+    public int Seed => _runState.Seed;
     public RunState State => _runState;
     public string ActiveRoomId => _runState.Dungeon.ActiveRoomId;
     public IReadOnlySet<string> VisitedRoomIds => _runState.Dungeon.VisitedRoomIds;
@@ -65,6 +79,15 @@ public partial class DungeonRoot : Node2D
         _healthBar = GetNodeOrNull<HealthBar>(HealthBarPath);
         _minimap = GetNodeOrNull<Minimap>(MinimapPath);
         _instantiator = BuildInstantiator();
+
+        // M5-5: swap the M2Sandbox default for a seeded generator layout.
+        // Done here, after the instantiator is built, so the entry-room
+        // EnterRoom call below uses the generated graph if the toggle is on.
+        if (UseGeneratedLayout)
+        {
+            Layout = DungeonGenerator.Generate(_runState.Seed);
+            GD.Print($"[dungeon] generated layout from seed {_runState.Seed} ({Layout.RoomCount} rooms)");
+        }
 
         if (_player != null)
         {
@@ -334,12 +357,19 @@ public partial class DungeonRoot : Node2D
     {
         var entries = new System.Collections.Generic.List<(string Name, PackedScene? Scene)>
         {
+            // M2Sandbox-specific names (HandBuiltLayouts uses these).
             ("EntryRoom", EntryRoomScene),
             ("WestHall", WestHallScene),
             ("FarRoom", FarRoomScene),
             ("VaultRoom", VaultRoomScene),
             ("RewardRoom", RewardRoomScene),
             ("VendorRoom", VendorRoomScene),
+            // Generator-emitted names (TemplatePool.Default uses these).
+            ("Entry_Generic", EntryGenericScene),
+            ("Combat_Generic", CombatGenericScene),
+            ("Item_Generic", ItemGenericScene),
+            ("Vendor_Generic", VendorGenericScene),
+            ("Boss_Generic", BossGenericScene),
         };
         foreach (var entry in AdditionalRoomTemplates)
             entries.Add((entry.Key, entry.Value));
