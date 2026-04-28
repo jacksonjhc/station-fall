@@ -268,22 +268,19 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 **M0 → M4 ✅** — repo cleanup, movement/combat sandbox, hand-built rooms + door transitions, first enemy + save/load, combat-feel pass + debug console, keys/doors/credits/vendor. Six rooms wired (Entry · WestHall · FarRoom · VaultRoom · RewardRoom · VendorRoom). 168/168 Core tests green at M4 close.
 
-### M5 — Procedural Dungeon Generator (next)
+**M5 ✅** — procedural dungeon generator end-to-end. `DungeonGenerator.Generate(seed)` produces deterministic layouts via spanning-tree growth + back-edges → boss selection at max BFS depth + boss isolation → KeyLocked boss approach + key placement → branch-room typing (Item / Vendor) → EnemyLocked combat-room boundaries → per-RoomType template assignment from `TemplatePool`. `DungeonInstantiator` (Godot) resolves template names to `PackedScene` via a data-driven registry that replaces the M4-era hard-coded switch. Five generic 4-door room scenes (`Entry_Generic`, `Combat_Generic`, `Item_Generic`, `Vendor_Generic`, `Boss_Generic`) cover the slice; `BaseRoom.tscn` is the scaffold for sector-specific variants in M9. `RunState.Seed` per-run, `DungeonRoot.UseGeneratedLayout` toggle ships M2Sandbox as a debug fixture (not removed). 388/388 Core tests green at M5 close, including a 16-invariant battery × ~4,300 seed sweep covering connectivity, key-reachability, lock chokepoint integrity, content-tier propagation, and template-pool determinism.
 
-**Workshop gate:** W7 ✓ (decisions promoted). M5 is unblocked.
+### Up next — workshop gates block all remaining implementation milestones
 
-The hand-built `M2Sandbox` layout becomes the algorithm's reference fixture and a debug-tool target — generated layouts replace it as the default at run start.
+| Milestone | Gating workshops |
+|-----------|------------------|
+| **M6** — Magnetic Grapple | W5 (Tools section) |
+| **M7** — Item room + synergies | W5 (Passives) + W6 (Synergies) |
+| **M8** — Mini-boss + meta currency | W4 (Bosses) + W9 (Difficulty Tier) |
+| **M9** — Sector 1 vertical slice | W3 ✓, W4, W5, W6, W8, W10 |
 
-Suggested session breakdown (mirrors the M3/M4 cadence — one feature, Core-first, then Godot wire-up):
-
-1. **M5-1 — Graph generation (Core)** — spanning tree + back-edges from seed; produces a `DungeonLayout` shaped like `M2Sandbox`. Tests: connectivity, room-count bounds, same-seed-same-graph determinism.
-2. **M5-2 — Critical path + room typing (Core)** — Entry→Boss walk, branch-room assignment (item/vendor/secret/narrative/mid-boss), key placement, content-tier tagging from `MetaState` difficulty tier. Tests: invariants from PLANNING.md § Dungeon Generation.
-3. **M5-3 — Bulk invariant tests (Core)** — property-style suite running 1000+ seeds × the full invariant set (no soft-locks, key reachable, item room reachable without locked-door traversal, secret-room minimum, layout size bounds).
-4. **M5-4 — `DungeonInstantiator` (Godot)** — reads any `DungeonLayout` and spawns rooms from a template pool keyed off `TemplateName`. Replaces `DungeonRoot.ResolveScene`'s hard-coded switch.
-5. **M5-5 — Default to generated layouts** — `DungeonRoot` uses a per-run seed (from `RunState`) and the generator instead of `HandBuiltLayouts.M2Sandbox()`. The hand-built layout stays as `HandBuiltLayouts.M2Sandbox()` for the debug console (`tp` between known rooms still works against either).
-
-**Exit criterion** (per the M5 milestone definition above): every randomly-chosen seed produces a layout that passes all invariants; running the game with seed N twice produces the same layout.
+**Highest-leverage next workshop:** W5 (Items: Passives, Tools, Consumables) — unblocks M6, M7, and contributes to M9. M6 and M7 are otherwise the natural follow-on implementation milestones.
 
 ### Workshops still pending
 
-W4 (Bosses), W5 (Items), W6 (Synergies), W8 (Sector 1 deep dive), W9 (Difficulty Tier), W10 (Narrative). None gate M5. See the gate table at the top of this file for which milestone unlocks each.
+W4 (Bosses), W5 (Items), W6 (Synergies), W8 (Sector 1 deep dive), W9 (Difficulty Tier), W10 (Narrative). See the gate table at the top of this file for which milestone unlocks each.
