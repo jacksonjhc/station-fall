@@ -10,7 +10,7 @@ public sealed record TemplatePool(IReadOnlyDictionary<RoomType, IReadOnlyList<st
 {
     public static TemplatePool Default { get; } = new(new Dictionary<RoomType, IReadOnlyList<string>>
     {
-        [RoomType.Entry] = new[] { "EntryRoom" },
+        [RoomType.Entry] = new[] { "Entry_Generic" },
         [RoomType.Combat] = new[] { "Combat_Generic" },
         [RoomType.Item] = new[] { "Item_Generic" },
         [RoomType.Vendor] = new[] { "Vendor_Generic" },
