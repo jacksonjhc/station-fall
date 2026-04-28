@@ -177,7 +177,8 @@ All vessels share the same actions: **Attack**, **Dodge**, **Tool**, **Signature
 | Dodge recharge | 1.5 | sec | |
 | Dodge distance | 96 | px | |
 | Dodge i-frames | 0.20 | sec (12 frames @ 60fps) | |
-| Luck | 0 | abstract | Affects crit chance, drop quality |
+| Luck | 0 | abstract | Affects drop *frequency* on random-drop tables (enemy / breakable / locker / room reward). Reduces the table's Nothing-weight; redistributes proportionally across actual drops. **Does NOT affect crit, rarity quality, item rooms, vendors, or scripted rewards.** Cap: +20pp Nothing-reduction from Luck contribution. (W5) |
+| Crit Chance | 0 | additive % | Player-side bonus added on top of the weapon's base crit. **Final crit chance = weapon base + Crit Chance bonus + item/passive modifiers.** Independent of Luck. (W5) |
 | Armor | 0 | flat | Damage layer that absorbs N points then breaks; pickup-only regen |
 
 #### HP system: Alundra-style icons
@@ -829,7 +830,7 @@ The full enum is defined in code from day one. The **vertical slice** uses *only
 
 **Defense layers — order of operations per hit:**
 
-1. **Crit roll** — per-hit base rate (per weapon) + Luck + passives. On success, multiply final damage by the per-weapon crit multiplier.
+1. **Crit roll** — per-hit base rate (per weapon) + Crit Chance stat + passives. On success, multiply final damage by the per-weapon crit multiplier. **Luck does not contribute to crit** (W5 — Luck handles drop frequency only).
 2. **Resistance** — per-type **flat per-hit subtraction**. *Resist 2 poison* = subtract 2 from each poison instance applied (min 0). Crits **bypass Resistance**. *Resistance-piercing gear* (passives) reduces an enemy's effective Resistance.
 3. **Immunity** — flat 0 damage from that type. Hard cap; not penetrable.
 4. **Armor (physical-only)** — flat damage pool that absorbs and depletes. Catches all 3 physical sub-types (slash + bash + pierce) but is **ignored** by elementals and exotics. Crits do **not** bypass Armor — but the doubled (or higher) damage chews armor down faster. Armor regenerates only via pickups.
@@ -845,9 +846,17 @@ The full enum is defined in code from day one. The **vertical slice** uses *only
 | Claws | Aberrant | 6% | 2.5× | brutal multiplier — gnaws armor down fast on crit |
 | Daggers | (found) | 10% | 2.0× → 3.0× from rear 90° cone | deft + W2 rear-bonus stack |
 
-- **Luck scaling:** +1 Luck → +1% crit rate. Cap +25% from Luck alone; passives can push higher independently.
+- **Crit Chance scaling:** Crit Chance stat is additive % on top of weapon base. No baseline cap from the stat; per-passive contribution caps possible.
 - Passives can boost crit rate (additive %) and crit multiplier (additive × on base) independently.
 - **Crit feedback:** larger damage number, distinct color, brief screen flash, +50% hit-stop on crit.
+
+**Luck — drop-frequency model (W5):**
+
+- Applies to *random-drop tables only*: enemy drops, breakables, lockers, room rewards.
+- Each Luck point reduces the table's `Nothing` weight by **2 percentage points**, with a hard cap of **+20pp Nothing-reduction** total from Luck.
+- Recovered weight is redistributed **proportionally** across the table's actual drop entries (preserves their relative ratios).
+- Luck does **NOT** affect: item-room rarity, vendor stock composition, boss-guaranteed drops, scripted rewards, or crit chance.
+- Example — Twitching Patient drop table `[1cr 40%, 2cr 10%, med scrap 5%, Nothing 45%]` at +5 Luck → Nothing becomes 35%, 10pp redistributed proportionally to actual drops by their existing weights (40:10:5).
 
 ### Dungeon Generation
 
@@ -881,18 +890,274 @@ Generation lives entirely in `Stationfall.Core`. Godot only instantiates the res
 | Category | Description | Example |
 |----------|-------------|---------|
 | Passive module | Permanent run-long stat/behavior modifier | "All hits apply 1s slow" / "Gain shield on room entry" / Poison Coat (DoT on hit) |
-| Active tool | Equipped slot; cooldown or charges | Magnetic Grapple, EMP burst, Scanner, Deployable Turret, Active Shield, Slingshot, Stun Coil |
-| Consumable | Single use | Medkit, Flashbang, Breaching Charge |
+| Active tool | Equipped slot; cooldown / charges / ammo / battery (per tool) | Magnetic Grapple, Stun Coil, Slingshot, Flashlight |
+| Consumable | Single use, occupies inventory slot | Medkit, Flashbang, Breaching Charge |
+| Resource pickup | Tops up a tool-internal counter; **not** an inventory item | Slingshot Ammo, Flashlight Battery |
 | Vessel upgrade | Improves signature ability | Longer duration, lower cooldown |
 | Key item | Unlocks specific doors; not randomized | Sector keycard, override module |
 
 **Acquisition:** item rooms (1-of-3), vendors (spend credits), boss/mid-boss drops, secret rooms, narrative rewards.
 
-**Synergies — design constraint, not feature:** every passive must be designed *with at least one other existing passive in mind*. Lone-wolf passives that don't compose are rejected at workshop time. Synergy categories use a tagging system (e.g., `fire`, `shield`, `projectile`, `movement`) so the design surface is searchable and synergy chains are intentional.
+**Synergies — design constraint, not feature:** every passive must be designed *with at least one other existing passive in mind*. Lone-wolf passives that don't compose are rejected at workshop time. Synergy categories use a tagging system (full spec in **Item Tagging** below) so the design surface is searchable and synergy chains are intentional.
 
-**Item pool size targets** (full design in W5):
-- Slice (M9): ~10 passives, 3 tools, 5 consumables, all designed for interaction
+**Item pool size targets:**
+- Slice (M9): ~10 passives, **4 tools**, ~5 consumables, all designed for interaction
 - Post-slice (full game): 50+ passives, 10+ tools, 10+ consumables
+
+> Slice tool count is 4, not 3 — Flashlight occupies a *utility/perception* slot distinct from the three combat tools.
+
+#### Item Tagging (W5)
+
+Tags are **authoring / search / UI metadata, NOT the source of gameplay behavior.** Behavior lives in `ItemEffect` / `ToolEffect` definitions and event handlers. Tags exist so designers can query the pool, W6 can locate synergy chains intentionally, and the UI can render player-facing chips.
+
+**Five orthogonal tag axes.** Each item may carry zero or more tags from each axis; tags are static per item definition (stacks change magnitude, duration, or caps — never tag identity).
+
+| Axis | Values |
+|------|--------|
+| **StatusTag** | slowed · stunned · bleeding · poisoned · burning · frozen · marked · shielded · armored · contaminated |
+| **DeliveryTag** | melee · projectile · beam · aoe · deployable · hazard · tool · dodge · combo · self_buff · room_effect |
+| **TriggerTag** | always · on_hit · on_damaging_hit · on_crit · on_kill · on_room_entry · on_room_clear · on_dodge · on_perfect_dodge · on_damage_taken · on_low_hp · on_tool_use · on_pickup |
+| **RoleTag** | offense · defense · movement · utility · economy · perception · exploration · sustain |
+| **EffectScope** | player · enemy · weapon · projectile · tool · room · door · hazard · pickup · vendor · run_state · meta_state |
+
+**Damage type is NOT a tag.** Damage type lives in the existing `DamageType` enum (W7 § Damage System). Tag axes are searchable; damage type is also searchable as an implicit property of the item — it is rendered as a chip in the UI alongside true tag chips, but it is not part of any tag namespace.
+
+**Two intentional name collisions across axes:**
+- `DeliveryTag.hazard` (item *creates* hazards — e.g. "drop fire pool on dodge") vs `EffectScope.hazard` (item *modifies* hazards — e.g. "disarm hazards on room entry").
+- `DeliveryTag.tool` (item is delivered via the tool slot — i.e. it is a tool) vs `EffectScope.tool` (item *modifies* your tools — e.g. Schoolbag adds a slot).
+
+These are namespaced enums so they cannot collide in code. Documenting here so authors don't conflate them in design discussion.
+
+**Player-visible chips — curated subset only** (rendered on item descriptions):
+
+`DamageType.Electric` · `DamageType.Poison` · `StatusTag.bleeding` · `StatusTag.slowed` · `StatusTag.stunned` · `StatusTag.shielded` · `DeliveryTag.melee` · `DeliveryTag.projectile` · `DeliveryTag.tool` · `DeliveryTag.dodge` · `DeliveryTag.combo` · `EffectScope.hazard` · `crit` (rendered as a chip when an item touches Crit Chance or Crit Multiplier).
+
+Triggers and Scopes are mostly hidden — they're authoring conveniences, not player vocabulary.
+
+#### Magnetic Grapple (W5 — gates M6)
+
+**Design intent:** a positioning verb. The player asks *"can I pull that to me, pull myself to that, or pull something through danger?"* It is **not** primarily a damage tool. It must solve at least two distinct problem types in the slice: combat displacement and traversal.
+
+**MassClass enum** (new, on enemy / level-object definitions):
+
+`Light · Medium · Heavy · Boss · Anchor · Immovable`
+
+**Sector 1 mass mapping:**
+
+| Enemy | MassClass | Notes |
+|---|---|---|
+| Twitching Patient | Light | Canonical pull-target. Teaches the verb. |
+| Drip Drone | Light | Flying — pulled to ground; briefly grounded for stagger duration. |
+| Convulsing Body | Medium | Hazard creature — split-pull walks player into a hazard. Read-and-don't-grapple choice. |
+| Suture Mite | Light | Grapple targets *one* mite, not the swarm. Others continue swarming. |
+| Bio-Seal Orderly | Heavy | Pull-player → into frontal brace. Grapple does not break brace (electric still required, per W3). |
+| Corrupted Medbot | Medium | Canonical "pull through hazard" target. |
+
+**Pull rules (per MassClass):**
+
+| Result | MassClass |
+|---|---|
+| Pull enemy to player; stagger 8 frames | Light |
+| Split-pull to midpoint (50/50); both move | Medium |
+| Pull player to enemy | Heavy / Elite |
+| No effect by default; phases / attack patterns can briefly expose `MassClass: Heavy` or an `AnchorPoint` child object (W4 boss choreography) | Boss |
+| Pull player to anchor | Anchor |
+| No effect | Immovable |
+
+- **Wall collision mid-pull:** clean stop, no impact damage. (Damage-on-collision is a future synergy item, not default.)
+- **Pull resolves with no leftover momentum** — player ends pull stationary, not sliding.
+- **Mid-pull death:** if the pulled enemy dies during pull (hazard tick, ally projectile), pull cancels, cooldown starts as if it resolved.
+- **Already-stunned enemy + grapple stagger:** `max(currentRemaining, grappleStagger)`, never sum. Prevents trivializing elite stagger lock with grapple-spam.
+
+**Cooldown / range / timing:**
+
+| Knob | Value |
+|---|---|
+| Range | 220 px |
+| Projectile speed | 520 px/sec |
+| Windup before fire | 6 frames (0.1 sec) |
+| Cooldown after pull resolves | 2.5 sec |
+| Cooldown on miss / wall hit | 2.5 sec (full — no spam) |
+| Damage | 0 (default) |
+| I-frames | None |
+
+All values playtest-tunable.
+
+**State gating — when can the player grapple?**
+
+| State | Grapple? |
+|---|---|
+| Idle / moving | Yes |
+| Attacking | No |
+| Dodging | No |
+| Staggered | No |
+| Already grappling | No (committed until pull resolves or projectile cancels) |
+| Charging another tool (e.g. Stun Coil) | No (one tool action at a time) |
+
+**Dodge cancel windows during a Grapple action:**
+
+| Window | Dodge cancels? | Notes |
+|---|---|---|
+| Windup (6f) | Yes | Full cooldown still incurred. |
+| Projectile travel (before hit) | Yes | Full cooldown. |
+| Post-attach pull | **No** by default. | Future "Grapple Cancel" passive can enable cancel during pull (W6). |
+
+Being hit during projectile travel does **not** cancel — only stagger / death cancels.
+
+**Reticle iconography — shape first, color optional:**
+
+| Icon | Meaning |
+|---|---|
+| Inward arrow | Pull enemy to you |
+| Double-arrow toward midpoint | Split-pull (Medium) |
+| Outward arrow / hook-to-target | Pull self to target |
+| Anchor | GrappleAnchor / traversal |
+| Broken-link | Invalid / Immovable |
+
+Color may layer in for redundancy/polish, never as primary signal. Accessibility win.
+
+**Aim model:** free-aim with **~10° half-angle cone-snap** (~20° full cone) toward valid targets. Configurable; flag at playtest if loose/tight.
+
+**M6 deliverable scope (4 rooms):**
+1. **Tool pedestal room** — guaranteed, grants Magnetic Grapple.
+2. **Combat-teach room** — pulling a Light enemy (Twitching Patient).
+3. **Hazard-teach room** — pull / split-pull an enemy through a hazard.
+4. **Traversal-teach room** — `GrappleAnchor` across a pit/gap.
+
+This satisfies M6's exit criterion (combat use + one of traversal/puzzle): combat × 2 scenarios + traversal. Hazard pull is enriched combat use; not a "third" deferred case.
+
+**Far-side switches, yankable crates, chain-grapple, and ceiling anchors are deferred** post-slice. Reserve a `Grappable` prop class in the data model now to avoid schema churn later.
+
+**Grapple's own tag profile:**
+
+```
+Delivery: [tool, projectile]
+Trigger:  [on_tool_use]
+Role:     [utility, movement, offense]
+Scope:    [enemy, player, hazard, door]   // door for far-side switch — deferred
+Status:   []                              // Grapple itself applies no status
+```
+
+**Synergy hooks W6 should design into:** damage-on-grapple, stagger-extender, marked-on-pull, generic tool cooldown reduction, "Grapple Cancel" passive (allow dodge-cancel during pull). Pulling enemies through hazards is the headline emergent play and works for free — hazards apply standard damage via `DamageCalculator` regardless of how the entity got there.
+
+#### Slice tool roster (W5)
+
+Four tools ship in the slice. Each uses a distinct resource model — variety is intentional, teaches the player different rhythms.
+
+| Tool | Source | Resource | Slice acquisition |
+|---|---|---|---|
+| **Magnetic Grapple** | W5 | Pure cooldown | Guaranteed via M6 pedestal room (off-pool entirely) |
+| **Stun Coil** | W2 | Charge-up + post-release cooldown | Random — vendor stock or item room |
+| **Slingshot** | W2 | Ammo + short per-shot cooldown | Random — vendor stock or item room |
+| **Flashlight** | W7 | Battery (depletion over time while on) | Random — vendor stock or item room |
+
+**No vessel starts with a tool equipped.** Operator's `Schoolbag` (second tool slot, W1) and `Console Hack` (passive, W1) provide identity without forcing a starting tool. *Long-term Operator note:* may need a weak/basic starting tool or guaranteed early tool-room bias because "the one that fights through tools" feels awkward with empty slots — defer until tool pool is implemented and tested.
+
+**Tool slot rules:**
+- One tool slot for most vessels; two for Operator (`Schoolbag`).
+- Tools are unique per-run (no duplicates in the same slot).
+- **Pickup-when-occupied:** swap-prompt (replaces current tool with prompt, not silent replace). Same UX pattern applies to consumables-at-cap.
+
+**Implementation order (target):**
+1. Magnetic Grapple — M6 (foundation).
+2. Slingshot — opportunistic next, piggybacks on Grapple's projectile infrastructure.
+3. Stun Coil — once status / electric damage / charge-up resource models mature.
+4. Flashlight — once W7 lighting / perception work lands for M9.
+
+#### Deferred / reserved tools
+
+Concept-reserved, not specced. Re-evaluate when the gating sector or system actually lands.
+
+| Tool | Source | Reserved for | Notes |
+|---|---|---|---|
+| Lantern | W7 | Post-slice | Radial-light variant of Flashlight. Different shape, not a collapse candidate. |
+| Active Shield | W2 | Post-slice | Needs directional defense + perfect-block timing systems. |
+| Scanner | W7 | Post-slice | Persistent variant of scan-card consumable. Slice covered by scan-cards. |
+| **Maintenance Tool** | W7 (collapse) | Post-slice | **Cutter + Hack Tool collapsed** into one design problem when puzzle complexity demands it. |
+| EMP Burst | PLANNING categories | Reserved (Engineering sector) | |
+| Deployable Turret | PLANNING categories | Reserved (Operator-leaning) | |
+
+**Vessel signatures (Overclock, Phase Shift) stay out of the W5 tool pool.** They are vessel-bound abilities, not pool tools. May appear later as rare pool items per W1's portability rule, but that's a W6+ decision.
+
+#### Pool tiering & rarity (W5)
+
+**Four tiers — defined by *role*, not raw power:**
+
+| Tier | Role |
+|---|---|
+| **Common** | Stat bumps, simple modifiers, low individual impact, stack-friendly. Most pool churn. |
+| **Uncommon** | Single meaningful effect, mild build influence. |
+| **Rare** | Build-defining or run-shaping. Vessel starting passives appearing as pool-portable rares. |
+| **Cursed** | Strong upside + meaningful drawback (Isaac-style). Player-chosen, never forced. |
+
+The full enum (including `Cursed`) ships from day one even though slice ships zero cursed items — schema-cost is zero, retrofitting is migration work.
+
+**Cursed model:**
+- Each cursed item has a strong primary effect + clear drawback. The player evaluates the trade.
+- **Hard cap: max 3 cursed items active per run.** Prevents stack-and-ascend degenerate builds.
+- **Boss drops are clean rewards — never cursed.** Cursed acquisition routes go through cursed rooms, bargain rooms, secret rooms, or explicit choice prompts. Boss-drop chance for Cursed is `0%`.
+- Sample cursed seeds for W5-passives session: `Bloodletting` (+50% melee dmg / lose 1 HP per 30s — Aberrant interaction), `Greedy Fingers` (vendors charge double / item rooms offer 4 pedestals), `Static Field` (all hits crit / +50% dmg from electric).
+
+**Pool composition targets** (content authoring targets — what % of *designed items* exist at each tier):
+
+| Tier | Slice (M9) | Full game |
+|---|---|---|
+| Common | ~50% | ~50% |
+| Uncommon | ~30% | ~30% |
+| Rare | ~20% | ~15% |
+| Cursed | 0% (slice ships zero cursed items) | ~5% |
+
+Slice's missing 5% (cursed) lifts Rare from 15% → 20% — slice runs feel slightly more rare-dense to compensate for the missing risk-reward axis.
+
+**Per-source roll weights** (runtime tuning — given a drop event from source X, chance of each tier):
+
+| Source | Common | Uncommon | Rare | Cursed |
+|---|---|---|---|---|
+| Item room (3 pedestals) | 25% | 50% | 25% | 0% (slice) |
+| Vendor stock | 65% | 30% | 5% | 0% (vendors don't sell cursed) |
+| Boss drop | 0% | 0% | **100%** | 0% (clean reward — never cursed) |
+| Mid-boss drop | 0% | 40% | 60% | 0% |
+| Secret room | 15% | 40% | 35% | 10% (slice: 15% / 40% / 45% / 0% — see roll-up rule) |
+| Cursed room | (deferred — design with cursed acquisition path) |
+
+**Tier-disabled roll-up rule:** when a roll lands on a disabled tier, weight transfers to the **next-most-rare still-available tier**. Slice example: secret-room baseline `15/40/35/10` with Cursed disabled becomes `15/40/45/0` (the 10pp Cursed weight transfers to Rare). Same rule applies to any tier-disabled scenario.
+
+**Vendor restock:**
+- Single stock per vendor instance — once items leave the shelf, slot stays empty until next run.
+- No reroll mechanic in slice (post-slice "Reroll" tool / consumable possible).
+- **Vendor stock size: 4 items.** Mix biased per the table above.
+- Stock is deterministic from seed.
+
+**Per-run uniqueness:**
+
+| Item type | Duplicate allowed in same run? |
+|---|---|
+| Common / Uncommon / Rare / Cursed passive | No (until pool exhausted, then re-enable) |
+| Stackable passive (Refrain, +max-HP variants) | Yes — up to documented stack cap |
+| Tool | No (tool slot replaces on pickup with swap-prompt) |
+| Consumable | Yes (up to inventory cap) |
+
+**Consumable inventory model:**
+- **Cap: 3 total consumables held simultaneously** (not per-type — total slots).
+- Pickup-when-full uses the same swap-prompt UX as tools.
+- **Resource pickups (Slingshot Ammo, Flashlight Battery) do NOT count toward the 3-slot cap.** They top up tool-internal counters and are a separate entity class (`ResourcePickup`) in the data model.
+
+**Slice consumable pool:**
+
+| Tier | Consumables |
+|---|---|
+| Common | Small Medkit, Slingshot Ammo (resource — not a slot), Battery (resource — not a slot) |
+| Uncommon | Anticoagulant (W3 — cleanse Bleed), Scan Card (W7 — one-shot reveal), Flashbang |
+| Rare | Breaching Charge, Big Medkit |
+
+No cursed consumables — the cursed tradeoff doesn't bite for short-lived single-use items.
+
+#### Open W5 work (future sessions)
+
+- **Passive roster** — full design pool (~10 slice / ~50 full game). Tags + tier per item.
+- **M7 synergy chain** — 2–3 passives with explicit pairwise synergies. Coordinated with W6.
+- **Full consumable pool design** — beyond the slice list above; rule details (e.g. pickup-up animation, can-throw-during-attack, etc.).
+- **Cursed acquisition path** — cursed room and/or bargain room mechanics, if/when cursed items are added to slice. Currently deferred.
 
 ### Currency
 

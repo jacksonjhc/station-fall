@@ -29,7 +29,7 @@ A workshop need not finish in one session. "Partial completion" is fine — part
 | W2 | Combat Feel & Weapon Patterns | Decisions promoted | M1, M3.5 |
 | W3 | Enemy Roster & Archetype Detail | Decisions promoted | M3, M9 |
 | W4 | Bosses & Mid-Bosses | Not started | M8, M9 |
-| W5 | Items: Passives, Tools, Consumables | Not started | M6, M7, M9 |
+| W5 | Items: Passives, Tools, Consumables | **Tools + tagging + rarity decisions promoted; passives + consumables roster outstanding** | M6, M7, M9 |
 | W6 | Synergies | Not started | M7 |
 | W7 | Dungeon Elements & Mechanics | Decisions promoted | M2, M5 |
 | W8 | Sector Themes (Sector 1 deep dive) | Not started | M9 |
@@ -225,28 +225,86 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 
 ## W5 — Items: Passives, Tools, Consumables
 
-**Status:** Not started
-**Gates:** M6 (Magnetic Grapple — Tools section), M7 (passives chain), M9 (Sector 1 pool)
-**Pre-read:** [PLANNING.md § Items, Tools, Modules](PLANNING.md#items-tools-modules)
+**Status:** Tools + tagging + rarity decisions promoted (full spec in [PLANNING.md § Items, Tools, Modules](PLANNING.md#items-tools-modules)). Passives roster + M7 synergy chain + full consumable roster + cursed acquisition path **outstanding** — to be picked up in a future W5 session, interleaved with W6 per the suggested run order.
+**Gates:** M6 ✓ (Grapple unblocked), M7 (passives chain still owed), M9 (full pool still owed)
+**Pre-read:** [PLANNING.md § Items, Tools, Modules](PLANNING.md#items-tools-modules), [PLANNING.md § Player / Vessel](PLANNING.md#player--vessel) (stat sheet)
 
-**Output owed:**
-- Tagging system for synergy categories (proposed: `fire`, `electric`, `shield`, `projectile`, `melee`, `movement`, `defensive`, `aoe`, `dot`, `crit`)
-- Tool roster: ~10 tools with rules (Magnetic Grapple is mandatory; others?)
-- For M6 specifically: Magnetic Grapple full spec — range, cooldown, valid targets, behavior on hit, edge cases (grappling an elite? grappling during own dodge?)
-- Passive roster: target ~50 for full game, ~10 for slice; each tagged for synergy
-- For M7 specifically: 2–3 passives with explicit pairwise synergies (a chain that visibly stacks)
-- Consumable roster: ~10 (medkit, flashbang, breaching charge, etc.) with rules
-- Pool tiering: common / uncommon / rare / cursed
-- Rarity → drop weight mapping
+**Output delivered (this session):**
+- 5-axis tagging system (StatusTag / DeliveryTag / TriggerTag / RoleTag / EffectScope) with the principle *tags are metadata, not behavior*
+- Magnetic Grapple full spec for M6 (positioning verb; MassClass enum; pull rules; cone-snap aim; reticle iconography; 4-room M6 deliverable)
+- Slice tool roster (Magnetic Grapple, Stun Coil, Slingshot, Flashlight) + deferred/reserved tools list (Lantern, Active Shield, Scanner, Maintenance Tool, EMP Burst, Deployable Turret)
+- **Cutter + Hack Tool collapsed → Maintenance Tool** (post-slice design problem)
+- Pool tiering (Common / Uncommon / Rare / Cursed) defined by *role*
+- Cursed model — Isaac-style, max 3 per run, never on boss drops
+- Pool composition targets (slice ~50/30/20/0; full game ~50/30/15/5)
+- Per-source roll weights (item room / vendor / boss / mid-boss / secret room)
+- Tier-disabled roll-up rule: weight transfers to next-most-rare still-available tier
+- Vendor restock model (single stock, 4 items, deterministic from seed, no reroll in slice)
+- Consumable inventory (3-slot total cap, swap-prompt UX shared with tools)
+- Resource pickup distinction (`ResourcePickup` ≠ `Consumable` in data model)
+- **Stat-system correction:** Luck and Crit Chance split into separate stats (see § Player/Vessel stat sheet and § Damage System)
 
-**Prompt questions:**
-- For the M7 chain: which tags should the first three passives share? (The chain "hit applies status → status enables damage bonus → kill grants defensive perk" is a strong starting template — any other shapes?)
-- Should there be *cursed* items — strong but with drawbacks? Isaac uses these heavily.
-- Should consumables be limited (e.g., max 3 of any consumable held)?
-- Is there a "tool ammo" concept or strictly cooldowns?
-- For Magnetic Grapple specifically — what feels best for "mass too heavy to grapple"? Hard limit, or "you get pulled instead"?
+**Output outstanding (future W5 session):**
+- Passive roster: ~10 slice / ~50 full game, each tagged
+- M7 synergy chain — 2–3 passives with explicit pairwise synergies
+- Full consumable pool design (beyond the slice list already locked)
+- Cursed acquisition path (cursed room and/or bargain room) if cursed items added to slice
 
-**Decisions:** *(filled in during workshop)*
+**Decisions (summary — full spec lives in PLANNING.md):**
+
+1. **Tags are metadata, not behavior.** Behavior lives in `ItemEffect` / `ToolEffect` + event handlers. Tags exist for authoring, search, and UI chips.
+
+2. **Five orthogonal tag axes.** StatusTag, DeliveryTag, TriggerTag, RoleTag, EffectScope. Each item carries 0+ tags per axis. Tags static per item (stacks change magnitude, not tag identity). Damage type stays out of the tag namespace — it's a real enum and an implicit searchable property.
+
+3. **Player-visible chips: curated subset.** DamageType (Electric, Poison) + select StatusTags (bleeding, slowed, stunned, shielded) + select DeliveryTags (melee, projectile, tool, dodge, combo) + EffectScope.hazard + crit. Triggers and Scopes mostly hidden.
+
+4. **Magnetic Grapple = positioning verb.** Range 220 / projectile 520 px/sec / windup 6f / cooldown 2.5s / no damage / no i-frames / pure cooldown (no ammo/charges). MassClass enum drives behavior (Light → pull-enemy, Medium → split-pull, Heavy → pull-player, Boss → no-effect-unless-exposed-AnchorPoint, Anchor → pull-self). Wall stops are clean, no collision damage. Already-stunned + grapple stagger uses `max`, not sum.
+
+5. **Dodge cancel windows on Grapple:** windup ✓ cancelable, projectile ✓ cancelable, post-attach pull ✗ not cancelable by default. Future "Grapple Cancel" passive lifts the post-attach restriction.
+
+6. **Reticle iconography: shape-first, color optional.** Inward arrow / double-arrow / outward arrow / anchor / broken-link. Accessibility win.
+
+7. **M6 Grapple deliverable: 4 rooms.** Pedestal (guaranteed grant) + combat-teach (Light pull) + hazard-teach (pull/split-pull through danger) + traversal-teach (GrappleAnchor across gap).
+
+8. **Slice tool roster: 4 tools** (Magnetic Grapple, Stun Coil, Slingshot, Flashlight). Flexes the "~3 tools" PLANNING target by one because Flashlight occupies a utility/perception slot distinct from combat tools. Each tool uses a distinct resource model — variety is intentional.
+
+9. **No vessel starts with a tool equipped** in the slice. (Operator long-term may need a basic starting tool — defer until pool is implemented and tested.)
+
+10. **Cutter + Hack Tool collapsed → Maintenance Tool.** Post-slice design problem when puzzle complexity demands it. Reserve the names; treat as one design problem.
+
+11. **Vessel signatures (Overclock, Phase Shift) stay out of the W5 tool pool.** They are vessel-bound abilities. May appear later as rare pool items per W1's portability rule — that's a W6+ decision.
+
+12. **Cursed model — Isaac-style.** Strong primary effect + meaningful drawback. Max 3 active cursed per run. Boss drops are clean (never cursed). Cursed acquisition routes through cursed/bargain/secret rooms or explicit choice prompts — full design deferred.
+
+13. **Tier-disabled roll-up rule:** weight transfers to next-most-rare still-available tier. Slice secret-room (cursed disabled): 15% / 40% / 45% / 0%.
+
+14. **Consumable cap: 3 total slots** (not per-type). Swap-prompt UX shared with tools. **Resource pickups (Slingshot Ammo, Flashlight Battery) do NOT count toward the cap** — separate `ResourcePickup` entity class in the data model.
+
+15. **Vendor stock: 4 items, single stock per vendor instance, deterministic from seed, no reroll in slice.** Vendors don't sell cursed.
+
+16. **Stat-system correction (cross-workshop):** Luck and Crit Chance are now separate stats.
+   - **Luck** affects drop *frequency* on random-drop tables only. Reduces table's Nothing-weight by 2pp per Luck point, capped at +20pp total. Recovered weight redistributes proportionally across actual drops. Does NOT affect rarity, item rooms, vendors, boss drops, or crit.
+   - **Crit Chance** is its own stat. `Final crit chance = weapon base + Crit Chance bonus + item/passive modifiers`. Independent of Luck.
+   - Edits applied to PLANNING § Player/Vessel stat sheet and § Damage System.
+
+**Items implicitly created by W5 (need IDs in `Assets/Data/...` when authoring pipeline lands):**
+
+- `Magnetic Grapple` (active tool — locked spec)
+- `MassClass` enum (system-level; new field on enemy / level-object `.tres`)
+- `GrappleAnchor` (level-data primitive; template-owned, not generator-owned)
+- `Grappable` prop class (reserved for post-slice yankable switches/crates — register in data model now to avoid schema churn)
+- `ResourcePickup` entity class (system-level; distinct from `Consumable`)
+- `Cursed` rarity tier enum value (ships now even with zero cursed items in slice)
+- All existing implicit items from W1/W2/W3/W7 carry forward into the W5 pool pending tier assignment in the future passives session
+
+**Handoffs to other workshops:**
+
+- **W3 (Enemy Roster):** add `MassClass` field to enemy `.tres` definitions. Sector 1 mapping locked above; other sectors backfill as their workshops land.
+- **W4 (Bosses & Mid-Bosses):** bosses default to `MassClass: Boss`. Phases / attack patterns can briefly expose `MassClass: Heavy` (player gets pulled into boss) or expose an `AnchorPoint` child object (player can grapple a boss-affixed point) — gives boss choreography a clean handle without bespoke code per fight.
+- **W6 (Synergies):** the 5-axis tag system is the search surface. **TriggerTag** is the load-bearing axis — most synergies are "when X fires, do Y." Concrete Grapple-driven synergy seeds: damage-on-grapple, stagger-extender, marked-on-pull, generic tool cooldown reduction, "Grapple Cancel" passive. Aberrant + cursed items is a natural synergy axis.
+- **W8 (Sector 1 deep dive):** Sector 1 templates own anchor placement (template-owned, not generator-owned). 2–3 Medical Wing templates should include `GrappleAnchor` slots; M6 ships exactly one for the proof-of-concept.
+- **W9 (Difficulty Tier Mechanics):** higher tiers may shift per-source roll weights (e.g. boost cursed weight in secret rooms, increase rare drop chance from item rooms). All weights ship configurable to support tier modifiers.
+- **W10 (Narrative Architecture):** owns naming for the rare max-HP recovery items (W1 handoff carries forward), and any cursed items with narrative weight.
 
 ---
 
