@@ -7,20 +7,25 @@
 [ext_resource type="Script" uid="uid://b2x6frj06i70t" path="res://Scripts/UI/Minimap.cs" id="5_map"]
 [ext_resource type="Script" uid="uid://cfksvw3r1c7vm" path="res://Scripts/Debug/DebugOverlay.cs" id="6_debug"]
 [ext_resource type="Script" uid="uid://05y6u46jnc51" path="res://Scripts/Combat/HurtboxComponent.cs" id="7_hurt"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/Entry_Generic.tscn" id="8_0gr3m"]
 [ext_resource type="Texture2D" uid="uid://cpifbvoij7i4k" path="res://Assets/Kenney/kenney_top-down-shooter/PNG/Survivor 1/survivor1_stand.png" id="8_survivor"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/Combat_Generic.tscn" id="9_bxtgv"]
 [ext_resource type="Script" uid="uid://dn6nhysym6w15" path="res://Scripts/UI/GameCamera.cs" id="9_camera"]
+[ext_resource type="Script" uid="uid://diy1fxh6ytgu7" path="res://Scripts/Combat/HitBurstPool.cs" id="10_burst"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/Item_Generic.tscn" id="10_ukeut"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/Vendor_Generic.tscn" id="11_ch0un"]
+[ext_resource type="Script" uid="uid://bgsmlqrymt08o" path="res://Scripts/Audio/Sfx.cs" id="11_sfx"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/Boss_Generic.tscn" id="12_cl2uv"]
+[ext_resource type="Script" uid="uid://ddqxnqv15iaet" path="res://Scripts/Items/CreditsService.cs" id="12_credits"]
+[ext_resource type="Script" uid="uid://cvi2iugorg2nv" path="res://Scripts/UI/CreditCounter.cs" id="13_counter"]
+[ext_resource type="Script" uid="uid://cucm8kcfsdltb" path="res://Scripts/Items/KeysService.cs" id="14_keys"]
+[ext_resource type="Script" uid="uid://bc78cwvfjhs5w" path="res://Scripts/UI/KeyCounter.cs" id="15_keycount"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/EntryRoom.tscn" id="scene_entry"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/FarRoom.tscn" id="scene_far"]
-[ext_resource type="PackedScene" path="res://Scenes/Rooms/WestHall.tscn" id="scene_west"]
-[ext_resource type="Script" path="res://Scripts/Combat/HitBurstPool.cs" id="10_burst"]
-[ext_resource type="Script" path="res://Scripts/Audio/Sfx.cs" id="11_sfx"]
-[ext_resource type="Script" path="res://Scripts/Items/CreditsService.cs" id="12_credits"]
-[ext_resource type="Script" path="res://Scripts/UI/CreditCounter.cs" id="13_counter"]
-[ext_resource type="Script" path="res://Scripts/Items/KeysService.cs" id="14_keys"]
-[ext_resource type="Script" path="res://Scripts/UI/KeyCounter.cs" id="15_keycount"]
-[ext_resource type="PackedScene" path="res://Scenes/Rooms/VaultRoom.tscn" id="scene_vault"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/RewardRoom.tscn" id="scene_reward"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/VaultRoom.tscn" id="scene_vault"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/VendorRoom.tscn" id="scene_vendor"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/WestHall.tscn" id="scene_west"]
 
 [sub_resource type="RectangleShape2D" id="shape_player_body"]
 size = Vector2(44, 44)
@@ -39,6 +44,12 @@ FarRoomScene = ExtResource("scene_far")
 VaultRoomScene = ExtResource("scene_vault")
 RewardRoomScene = ExtResource("scene_reward")
 VendorRoomScene = ExtResource("scene_vendor")
+EntryGenericScene = ExtResource("8_0gr3m")
+CombatGenericScene = ExtResource("9_bxtgv")
+ItemGenericScene = ExtResource("10_ukeut")
+VendorGenericScene = ExtResource("11_ch0un")
+BossGenericScene = ExtResource("12_cl2uv")
+UseGeneratedLayout = true
 
 [node name="Backdrop" type="ColorRect" parent="." unique_id=853251278]
 offset_left = -2000.0
@@ -111,7 +122,7 @@ offset_bottom = 240.0
 mouse_filter = 2
 script = ExtResource("5_map")
 
-[node name="CreditCounter" type="Control" parent="HUD"]
+[node name="CreditCounter" type="Control" parent="HUD" unique_id=1500623591]
 layout_mode = 3
 anchors_preset = 0
 offset_left = 420.0
@@ -122,7 +133,7 @@ mouse_filter = 2
 script = ExtResource("13_counter")
 FontSize = 32
 
-[node name="KeyCounter" type="Control" parent="HUD"]
+[node name="KeyCounter" type="Control" parent="HUD" unique_id=343809073]
 layout_mode = 3
 anchors_preset = 0
 offset_left = 540.0
@@ -131,7 +142,6 @@ offset_right = 720.0
 offset_bottom = 76.0
 mouse_filter = 2
 script = ExtResource("15_keycount")
-FontSize = 32
 
 [node name="HitBurstPool" type="Node2D" parent="." unique_id=1923847561]
 script = ExtResource("10_burst")
@@ -139,10 +149,10 @@ script = ExtResource("10_burst")
 [node name="Sfx" type="Node" parent="." unique_id=1923847562]
 script = ExtResource("11_sfx")
 
-[node name="CreditsService" type="Node" parent="."]
+[node name="CreditsService" type="Node" parent="." unique_id=2111658995]
 script = ExtResource("12_credits")
 
-[node name="KeysService" type="Node" parent="."]
+[node name="KeysService" type="Node" parent="." unique_id=1452419956]
 script = ExtResource("14_keys")
 
 [node name="Debug" type="CanvasLayer" parent="." unique_id=2083984275]
@@ -180,11 +190,7 @@ layout_mode = 2
 [node name="History" type="RichTextLabel" parent="Debug/Console/VBox" unique_id=1837465922]
 layout_mode = 2
 size_flags_vertical = 3
-bbcode_enabled = false
-fit_content = false
-scroll_active = true
 scroll_following = true
-text = ""
 
 [node name="Input" type="LineEdit" parent="Debug/Console/VBox" unique_id=1837465923]
 layout_mode = 2
