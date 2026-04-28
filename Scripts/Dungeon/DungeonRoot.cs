@@ -28,6 +28,7 @@ public partial class DungeonRoot : Node2D
     [Export] public PackedScene? FarRoomScene { get; set; }
     [Export] public PackedScene? VaultRoomScene { get; set; }
     [Export] public PackedScene? RewardRoomScene { get; set; }
+    [Export] public PackedScene? VendorRoomScene { get; set; }
 
     public DungeonLayout Layout { get; private set; } = HandBuiltLayouts.M2Sandbox();
     public RunState State => _runState;
@@ -324,6 +325,7 @@ public partial class DungeonRoot : Node2D
         "FarRoom" => FarRoomScene,
         "VaultRoom" => VaultRoomScene,
         "RewardRoom" => RewardRoomScene,
+        "VendorRoom" => VendorRoomScene,
         _ => null,
     };
 

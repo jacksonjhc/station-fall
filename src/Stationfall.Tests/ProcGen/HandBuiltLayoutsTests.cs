@@ -6,10 +6,32 @@ namespace Stationfall.Tests.ProcGen;
 public class HandBuiltLayoutsTests
 {
     [Fact]
-    public void M2Sandbox_HasFiveRooms()
+    public void M2Sandbox_HasSixRooms()
     {
         var layout = HandBuiltLayouts.M2Sandbox();
-        Assert.Equal(5, layout.RoomCount);
+        Assert.Equal(6, layout.RoomCount);
+    }
+
+    [Fact]
+    public void M2Sandbox_FarRoomToVendor_IsOpenBothWays()
+    {
+        var layout = HandBuiltLayouts.M2Sandbox();
+        var farRoom = layout.GetRoom(HandBuiltLayouts.FarRoomId);
+        var vendor = layout.GetRoom(HandBuiltLayouts.VendorRoomId);
+        Assert.True(farRoom.TryGetDoor(CardinalDirection.South, out var south));
+        Assert.True(vendor.TryGetDoor(CardinalDirection.North, out var north));
+        Assert.Equal(HandBuiltLayouts.VendorRoomId, south.TargetRoomId);
+        Assert.Equal(HandBuiltLayouts.FarRoomId, north.TargetRoomId);
+        Assert.Equal(DoorType.Open, south.Type);
+        Assert.Equal(DoorType.Open, north.Type);
+    }
+
+    [Fact]
+    public void M2Sandbox_VendorRoomIsVendorType()
+    {
+        var layout = HandBuiltLayouts.M2Sandbox();
+        var vendor = layout.GetRoom(HandBuiltLayouts.VendorRoomId);
+        Assert.Equal(RoomType.Vendor, vendor.Type);
     }
 
     [Fact]

@@ -47,3 +47,13 @@ public record ChestState(bool Opened) : EntityState
 {
     public override string Kind => "Chest";
 }
+
+// Vendor pedestal state. ConsumableId pins the SKU assigned to this
+// pedestal at first room entry (vendor stock is generated once per visit
+// and never re-rolled). Sold flips on purchase; sold pedestals show empty
+// art and reject further interaction. Both fields persist so re-entering
+// the vendor room sees the same stock and the same sold/unsold state.
+public record VendorPedestalState(string ConsumableId, bool Sold) : EntityState
+{
+    public override string Kind => "VendorPedestal";
+}

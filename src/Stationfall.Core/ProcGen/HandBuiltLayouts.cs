@@ -7,16 +7,22 @@ public static class HandBuiltLayouts
     public const string FarRoomId = "far_room";
     public const string VaultRoomId = "vault_room";
     public const string RewardRoomId = "reward_room";
+    public const string VendorRoomId = "vendor_room";
 
-    // M4-3 fixture:
+    // M4-4 fixture:
+    //                                            RewardRoom (chest)
+    //                                                │
+    //                                              [open]
+    //                                                │
     //   Entry ─[open]─ WestHall ─[enemy-locked]─ FarRoom ─[key-locked]─ VaultRoom
     //                                                │
     //                                              [open]
     //                                                │
-    //                                            RewardRoom (chest)
+    //                                            VendorRoom (consumables)
     //
-    // Two distinct reward beats: vault (static credits behind a key door)
-    // and reward (chest behind a free door). FarRoom is the hub.
+    // Three distinct reward beats off the FarRoom hub: vault (static
+    // credits behind a key door), reward (chest behind a free door),
+    // vendor (spend credits on consumables behind a free door).
     public static DungeonLayout M2Sandbox()
     {
         var entry = new RoomDescriptor(
@@ -47,6 +53,7 @@ public static class HandBuiltLayouts
                 [CardinalDirection.West] = new DoorDescriptor(WestHallRoomId, DoorType.EnemyLocked),
                 [CardinalDirection.East] = new DoorDescriptor(VaultRoomId, DoorType.KeyLocked),
                 [CardinalDirection.North] = new DoorDescriptor(RewardRoomId, DoorType.Open),
+                [CardinalDirection.South] = new DoorDescriptor(VendorRoomId, DoorType.Open),
             });
 
         var vaultRoom = new RoomDescriptor(
@@ -67,8 +74,17 @@ public static class HandBuiltLayouts
                 [CardinalDirection.South] = new DoorDescriptor(FarRoomId, DoorType.Open),
             });
 
+        var vendorRoom = new RoomDescriptor(
+            Id: VendorRoomId,
+            Type: RoomType.Vendor,
+            TemplateName: "VendorRoom",
+            Doors: new Dictionary<CardinalDirection, DoorDescriptor>
+            {
+                [CardinalDirection.North] = new DoorDescriptor(FarRoomId, DoorType.Open),
+            });
+
         return new DungeonLayout(
-            Rooms: new[] { entry, westHall, farRoom, vaultRoom, rewardRoom },
+            Rooms: new[] { entry, westHall, farRoom, vaultRoom, rewardRoom, vendorRoom },
             EntryRoomId: EntryRoomId);
     }
 }
