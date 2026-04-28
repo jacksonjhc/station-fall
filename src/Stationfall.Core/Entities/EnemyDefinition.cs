@@ -12,5 +12,6 @@ namespace Stationfall.Core.Entities;
 public record EnemyDefinition(
     string Id,
     string DisplayName,
-    TwitchingPatientConfig Brain
+    TwitchingPatientConfig Brain,
+    MassClass MassClass = MassClass.Light
 );

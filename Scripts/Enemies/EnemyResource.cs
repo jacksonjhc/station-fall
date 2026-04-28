@@ -18,6 +18,11 @@ public partial class EnemyResource : Resource
     [Export] public string Id { get; set; } = "";
     [Export] public string DisplayName { get; set; } = "";
 
+    // MassClass drives Magnetic Grapple outcomes (PLANNING.md § Magnetic Grapple).
+    // Sector 1 mapping: Twitching Patient/Drip Drone/Suture Mite = Light;
+    // Convulsing Body/Corrupted Medbot = Medium; Bio-Seal Orderly = Heavy.
+    [Export] public MassClass MassClass { get; set; } = MassClass.Light;
+
     // Visual + scene wiring used by the spawner / controller; Core doesn't see these.
     [Export] public PackedScene? Scene { get; set; }
     [Export] public Color BodyColor { get; set; } = new Color(0.55f, 0.65f, 0.45f);
@@ -66,5 +71,6 @@ public partial class EnemyResource : Resource
     public EnemyDefinition ToCoreDefinition() => new(
         Id: Id,
         DisplayName: DisplayName,
-        Brain: ToBrainConfig());
+        Brain: ToBrainConfig(),
+        MassClass: MassClass);
 }

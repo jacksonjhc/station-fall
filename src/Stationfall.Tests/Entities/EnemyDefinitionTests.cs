@@ -20,4 +20,17 @@ public class EnemyDefinitionTests
         var s = EnemyAiBrain.Tick(EnemyAiSnapshot.Initial, sensor, nowSeconds: 0, deltaSeconds: 1f / 60f, def.Brain);
         Assert.Equal(AiState.Chase, s.Phase);
     }
+
+    [Fact]
+    public void MassClass_DefaultsToLight_AndRoundTrips()
+    {
+        var defaulted = new EnemyDefinition(
+            Id: "twitching_patient",
+            DisplayName: "Twitching Patient",
+            Brain: TwitchingPatientConfig.Default);
+        Assert.Equal(MassClass.Light, defaulted.MassClass);
+
+        var heavy = defaulted with { MassClass = MassClass.Heavy };
+        Assert.Equal(MassClass.Heavy, heavy.MassClass);
+    }
 }
