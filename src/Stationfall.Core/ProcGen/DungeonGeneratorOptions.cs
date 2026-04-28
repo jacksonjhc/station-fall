@@ -1,0 +1,17 @@
+namespace Stationfall.Core.ProcGen;
+
+public record DungeonGeneratorOptions(
+    int MinRoomCount = 6,
+    int MaxRoomCount = 8,
+    double BackEdgeProbability = 0.2)
+{
+    public void Validate()
+    {
+        if (MinRoomCount < 2)
+            throw new ArgumentOutOfRangeException(nameof(MinRoomCount), MinRoomCount, "MinRoomCount must be >= 2 (need entry + at least one connected room).");
+        if (MaxRoomCount < MinRoomCount)
+            throw new ArgumentOutOfRangeException(nameof(MaxRoomCount), MaxRoomCount, "MaxRoomCount must be >= MinRoomCount.");
+        if (BackEdgeProbability < 0.0 || BackEdgeProbability > 1.0)
+            throw new ArgumentOutOfRangeException(nameof(BackEdgeProbability), BackEdgeProbability, "BackEdgeProbability must be in [0, 1].");
+    }
+}
