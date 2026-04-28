@@ -264,37 +264,26 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 ## Immediate Next Actions (the next few sessions)
 
-This list intentionally interleaves coding and design. Workshops are first because M1 cannot ship without W1+W2 output.
+### Closed milestones
 
-### Code (M0 — small, ordered, reviewable)
+**M0 → M4 ✅** — repo cleanup, movement/combat sandbox, hand-built rooms + door transitions, first enemy + save/load, combat-feel pass + debug console, keys/doors/credits/vendor. Six rooms wired (Entry · WestHall · FarRoom · VaultRoom · RewardRoom · VendorRoom). 168/168 Core tests green at M4 close.
 
-These can be done in a single short session. M0 has no workshop gate.
+### M5 — Procedural Dungeon Generator (next)
 
-1. **Rename `Stats` → `EntityStats`** ([src/Stationfall.Core/Entities/Stats.cs](src/Stationfall.Core/Entities/Stats.cs)). Update `PlayerVessel` and any test consumers.
-2. **Delete `Combatant.cs`** ([src/Stationfall.Core/Entities/Combatant.cs](src/Stationfall.Core/Entities/Combatant.cs)). Real-time entities live as Godot Nodes; Core holds stats, not entity wrappers.
-3. **Create empty Core folders** with `.gitkeep`: `Combat/`, `Ai/`, `ProcGen/`, `Items/`, `Tools/`, `Currency/`, `Progression/`, `Narrative/`, `SaveData/`, `Rng/`.
-4. **Create empty `Scripts/` subfolders**: `Bootstrap/`, `Player/`, `Enemies/`, `Combat/`, `Dungeon/`, `Items/`, `Puzzles/`, `UI/`, `Narrative/`, `Debug/`.
-5. **Create empty `Scenes/`, `Assets/Sprites/`, `Assets/Audio/`, `Assets/Fonts/`, `Assets/Data/{Enemies,Items,Tools,Consumables,Vessels,RoomTemplates,Narrative}/`** with `.gitkeep`.
-6. **Add `Core/Combat/DamageResult.cs`** record stub (`int Amount, bool Killed`) — anchors next session's M1 work.
-7. **Add `Core/Rng/RngService.cs`** — thin seeded wrapper over `System.Random`. Add a test asserting same-seed-same-sequence.
-8. **Add `xunit` smoke test** in `src/Stationfall.Tests/Entities/EntityStatsTests.cs` covering `IsAlive`, `WithHp` clamping at 0 and `MaxHp`.
-9. **Run `dotnet build` and `dotnet test`** — both green is the M0 exit gate.
+**Workshop gate:** W7 ✓ (decisions promoted). M5 is unblocked.
 
-### Design workshops (must precede M1)
+The hand-built `M2Sandbox` layout becomes the algorithm's reference fixture and a debug-tool target — generated layouts replace it as the default at run start.
 
-Run as conversational sessions; output lands in [WORKSHOPS.md](WORKSHOPS.md) and gets promoted to PLANNING.md.
+Suggested session breakdown (mirrors the M3/M4 cadence — one feature, Core-first, then Godot wire-up):
 
-1. **W1 — Vessels & Signature Abilities** — full vessel roster, concrete stats, signature ability rules
-2. **W2 — Combat Feel & Weapon Patterns** — weapon roster, attack timing tables, hit-stop ms, dodge i-frames
+1. **M5-1 — Graph generation (Core)** — spanning tree + back-edges from seed; produces a `DungeonLayout` shaped like `M2Sandbox`. Tests: connectivity, room-count bounds, same-seed-same-graph determinism.
+2. **M5-2 — Critical path + room typing (Core)** — Entry→Boss walk, branch-room assignment (item/vendor/secret/narrative/mid-boss), key placement, content-tier tagging from `MetaState` difficulty tier. Tests: invariants from PLANNING.md § Dungeon Generation.
+3. **M5-3 — Bulk invariant tests (Core)** — property-style suite running 1000+ seeds × the full invariant set (no soft-locks, key reachable, item room reachable without locked-door traversal, secret-room minimum, layout size bounds).
+4. **M5-4 — `DungeonInstantiator` (Godot)** — reads any `DungeonLayout` and spawns rooms from a template pool keyed off `TemplateName`. Replaces `DungeonRoot.ResolveScene`'s hard-coded switch.
+5. **M5-5 — Default to generated layouts** — `DungeonRoot` uses a per-run seed (from `RunState`) and the generator instead of `HandBuiltLayouts.M2Sandbox()`. The hand-built layout stays as `HandBuiltLayouts.M2Sandbox()` for the debug console (`tp` between known rooms still works against either).
 
-After W1 + W2, M1 is unblocked.
+**Exit criterion** (per the M5 milestone definition above): every randomly-chosen seed produces a layout that passes all invariants; running the game with seed N twice produces the same layout.
 
-### Then, before M2
+### Workshops still pending
 
-3. **W7 — Dungeon Elements & Mechanics** (at minimum: door variants, basic interactive props, hazard categories)
-
-### Then, before M3
-
-4. **W3 — Enemy Roster** ✓ (full Sector 1 roster + durable principles promoted to PLANNING.md)
-
-The remaining workshops (W4–W6, W8–W10) can be scheduled against their later milestones — see the gate table at the top of this file.
+W4 (Bosses), W5 (Items), W6 (Synergies), W8 (Sector 1 deep dive), W9 (Difficulty Tier), W10 (Narrative). None gate M5. See the gate table at the top of this file for which milestone unlocks each.
