@@ -16,8 +16,6 @@ namespace Stationfall.Core.ProcGen;
 public static class DungeonGenerator
 {
     public const string EntryRoomId = "entry";
-    private const string EntryTemplate = "EntryRoom";
-    private const string GenericTemplate = "GeneratedRoom";
 
     private static readonly CardinalDirection[] AllDirections =
     {
@@ -50,6 +48,7 @@ public static class DungeonGenerator
         // No lock means no key — placing one would orphan a pickup the run
         // never needs. Keeps key count and lock count in lockstep.
         if (options.PlaceBossKeyLock) PlaceKey(graph, bossId, rng);
+        AssignTemplates(graph, rng, options);
         return Materialize(graph, options);
     }
 
@@ -63,6 +62,7 @@ public static class DungeonGenerator
         public Dictionary<string, Dictionary<CardinalDirection, EdgeRef>> Doors { get; } = new();
         public Dictionary<string, RoomType> Types { get; } = new();
         public HashSet<string> KeyRooms { get; } = new();
+        public Dictionary<string, string> Templates { get; } = new();
     }
 
     private readonly record struct EdgeRef(string TargetId, DoorType Type);
@@ -312,7 +312,22 @@ public static class DungeonGenerator
         graph.KeyRooms.Add(pick);
     }
 
-    // ----- Phase 7: materialize -----
+    // ----- Phase 7: template assignment -----
+
+    // Each room picks its template name from the pool entry for its RoomType.
+    // Pulling RNG draws here (after typing/locking) keeps structural decisions
+    // independent of pool size — adding a template to a pool changes scene
+    // selection but not the underlying graph.
+    private static void AssignTemplates(GraphState graph, RngService rng, DungeonGeneratorOptions options)
+    {
+        foreach (var roomId in graph.OrderedIds)
+        {
+            var pool = options.TemplatePool.For(graph.Types[roomId]);
+            graph.Templates[roomId] = pool.Count == 1 ? pool[0] : pool[rng.NextInt(0, pool.Count)];
+        }
+    }
+
+    // ----- Phase 8: materialize -----
 
     private static DungeonLayout Materialize(GraphState graph, DungeonGeneratorOptions options)
     {
@@ -323,9 +338,7 @@ public static class DungeonGenerator
             foreach (var (dir, edge) in graph.Doors[roomId])
                 doors[dir] = new DoorDescriptor(edge.TargetId, edge.Type);
 
-            var type = graph.Types[roomId];
-            var template = type == RoomType.Entry ? EntryTemplate : GenericTemplate;
-            rooms.Add(new RoomDescriptor(roomId, type, template, doors)
+            rooms.Add(new RoomDescriptor(roomId, graph.Types[roomId], graph.Templates[roomId], doors)
             {
                 ContentTier = options.ContentTier,
                 ContainsKey = graph.KeyRooms.Contains(roomId),

@@ -388,6 +388,121 @@ public class DungeonGeneratorTests
     }
 
     [Fact]
+    public void Generate_DefaultPool_AssignsPerTypeTemplateName()
+    {
+        var layout = DungeonGenerator.Generate(0);
+        foreach (var room in layout.Rooms)
+        {
+            var expected = TemplatePool.Default.For(room.Type);
+            Assert.Contains(room.TemplateName, expected);
+        }
+    }
+
+    [Fact]
+    public void Generate_CustomPoolWithSingleEntry_UsesItForEveryRoomOfThatType()
+    {
+        var pool = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
+        {
+            [RoomType.Entry] = new[] { "Custom_Entry" },
+            [RoomType.Combat] = new[] { "Custom_Combat" },
+            [RoomType.Item] = new[] { "Custom_Item" },
+            [RoomType.Vendor] = new[] { "Custom_Vendor" },
+            [RoomType.Boss] = new[] { "Custom_Boss" },
+        });
+        var options = new DungeonGeneratorOptions { TemplatePool = pool };
+        var layout = DungeonGenerator.Generate(7, options);
+        foreach (var room in layout.Rooms)
+        {
+            var expected = "Custom_" + room.Type;
+            Assert.Equal(expected, room.TemplateName);
+        }
+    }
+
+    [Fact]
+    public void Generate_CustomPoolWithMultipleEntries_VariesTemplatesAcrossSeeds()
+    {
+        var pool = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
+        {
+            [RoomType.Entry] = new[] { "EntryRoom" },
+            [RoomType.Combat] = new[] { "Combat_A", "Combat_B", "Combat_C", "Combat_D" },
+            [RoomType.Item] = new[] { "Item_Generic" },
+            [RoomType.Vendor] = new[] { "Vendor_Generic" },
+            [RoomType.Boss] = new[] { "Boss_Generic" },
+        });
+        var options = new DungeonGeneratorOptions { TemplatePool = pool };
+        var seenCombatTemplates = new HashSet<string>();
+        for (var seed = 0; seed < 50; seed++)
+        {
+            var layout = DungeonGenerator.Generate(seed, options);
+            foreach (var room in layout.Rooms)
+                if (room.Type == RoomType.Combat) seenCombatTemplates.Add(room.TemplateName);
+        }
+        // 50 seeds × ~3 combat rooms each = ~150 picks across 4 templates.
+        // If RNG drives the choice, we should see all 4 represented.
+        Assert.Equal(4, seenCombatTemplates.Count);
+    }
+
+    [Fact]
+    public void Generate_PoolMissingRequiredType_Throws()
+    {
+        var pool = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
+        {
+            [RoomType.Entry] = new[] { "EntryRoom" },
+            // Combat / Item / Vendor / Boss intentionally missing — generation will hit Combat first.
+        });
+        var options = new DungeonGeneratorOptions { TemplatePool = pool };
+        Assert.Throws<InvalidOperationException>(() => DungeonGenerator.Generate(0, options));
+    }
+
+    [Fact]
+    public void Generate_PoolWithEmptyListForType_Throws()
+    {
+        var pool = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
+        {
+            [RoomType.Entry] = new[] { "EntryRoom" },
+            [RoomType.Combat] = Array.Empty<string>(),
+            [RoomType.Item] = new[] { "Item_Generic" },
+            [RoomType.Vendor] = new[] { "Vendor_Generic" },
+            [RoomType.Boss] = new[] { "Boss_Generic" },
+        });
+        var options = new DungeonGeneratorOptions { TemplatePool = pool };
+        Assert.Throws<InvalidOperationException>(() => DungeonGenerator.Generate(0, options));
+    }
+
+    [Fact]
+    public void Generate_TemplateAssignment_IsDeterministicAcrossPools()
+    {
+        // Two layouts with the same seed but different multi-entry pools must
+        // pick the same INDEX into their respective pools. That keeps template
+        // assignment a function of (seed, room order, pool size), not name.
+        var poolA = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
+        {
+            [RoomType.Entry] = new[] { "E" },
+            [RoomType.Combat] = new[] { "C0", "C1", "C2" },
+            [RoomType.Item] = new[] { "I" },
+            [RoomType.Vendor] = new[] { "V" },
+            [RoomType.Boss] = new[] { "B" },
+        });
+        var poolB = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
+        {
+            [RoomType.Entry] = new[] { "E" },
+            [RoomType.Combat] = new[] { "X0", "X1", "X2" },
+            [RoomType.Item] = new[] { "I" },
+            [RoomType.Vendor] = new[] { "V" },
+            [RoomType.Boss] = new[] { "B" },
+        });
+        var a = DungeonGenerator.Generate(42, new DungeonGeneratorOptions { TemplatePool = poolA });
+        var b = DungeonGenerator.Generate(42, new DungeonGeneratorOptions { TemplatePool = poolB });
+        for (var i = 0; i < a.Rooms.Count; i++)
+        {
+            if (a.Rooms[i].Type != RoomType.Combat) continue;
+            var idxA = poolA.For(RoomType.Combat).ToList().IndexOf(a.Rooms[i].TemplateName);
+            var idxB = poolB.For(RoomType.Combat).ToList().IndexOf(b.Rooms[i].TemplateName);
+            Assert.Equal(idxA, idxB);
+        }
+    }
+
+    [Fact]
     public void Generate_RejectsNegativeBranchCounts()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

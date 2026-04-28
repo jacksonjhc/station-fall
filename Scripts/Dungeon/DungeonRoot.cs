@@ -30,6 +30,12 @@ public partial class DungeonRoot : Node2D
     [Export] public PackedScene? RewardRoomScene { get; set; }
     [Export] public PackedScene? VendorRoomScene { get; set; }
 
+    // M5-4: data-driven template registry for layouts the generator produces
+    // (Combat_Generic, Item_Generic, etc.). Empty by default — populated in
+    // .tscn when M5-5 swaps in generated layouts. The hand-built [Export]
+    // slots above merge in alongside these entries on _Ready.
+    [Export] public Godot.Collections.Dictionary<string, PackedScene> AdditionalRoomTemplates { get; set; } = new();
+
     public DungeonLayout Layout { get; private set; } = HandBuiltLayouts.M2Sandbox();
     public RunState State => _runState;
     public string ActiveRoomId => _runState.Dungeon.ActiveRoomId;
@@ -47,6 +53,7 @@ public partial class DungeonRoot : Node2D
     private RoomController? _activeRoom;
     private HealthBar? _healthBar;
     private Minimap? _minimap;
+    private DungeonInstantiator? _instantiator;
 
     public override void _Ready()
     {
@@ -57,6 +64,7 @@ public partial class DungeonRoot : Node2D
         _roomSlot = GetNodeOrNull<Node2D>(RoomSlotPath);
         _healthBar = GetNodeOrNull<HealthBar>(HealthBarPath);
         _minimap = GetNodeOrNull<Minimap>(MinimapPath);
+        _instantiator = BuildInstantiator();
 
         if (_player != null)
         {
@@ -113,15 +121,13 @@ public partial class DungeonRoot : Node2D
             _activeRoom = null;
         }
 
-        var scene = ResolveScene(descriptor.TemplateName);
-        if (scene == null)
+        if (_instantiator == null)
         {
-            GD.PushError($"DungeonRoot: no scene wired for template '{descriptor.TemplateName}'");
+            GD.PushError("DungeonRoot: instantiator not initialized");
             return;
         }
-
-        var instance = scene.Instantiate<RoomController>();
-        instance.RoomId = descriptor.Id;
+        var instance = _instantiator.Build(descriptor);
+        if (instance == null) return;
 
         // Teleport the player BEFORE adding the new room to the tree.
         // The new room's door Area2Ds sit at the same world positions as the
@@ -318,16 +324,25 @@ public partial class DungeonRoot : Node2D
         _ => Vector2.Zero,
     };
 
-    private PackedScene? ResolveScene(string templateName) => templateName switch
+    // Merge the legacy hand-built [Export] slots and any additional templates
+    // declared in .tscn into a single registry. Hand-built names (M2Sandbox)
+    // and generator-emitted names (Combat_Generic etc.) coexist until M5-5
+    // makes generated layouts the default.
+    private DungeonInstantiator BuildInstantiator()
     {
-        "EntryRoom" => EntryRoomScene,
-        "WestHall" => WestHallScene,
-        "FarRoom" => FarRoomScene,
-        "VaultRoom" => VaultRoomScene,
-        "RewardRoom" => RewardRoomScene,
-        "VendorRoom" => VendorRoomScene,
-        _ => null,
-    };
+        var entries = new System.Collections.Generic.List<(string Name, PackedScene? Scene)>
+        {
+            ("EntryRoom", EntryRoomScene),
+            ("WestHall", WestHallScene),
+            ("FarRoom", FarRoomScene),
+            ("VaultRoom", VaultRoomScene),
+            ("RewardRoom", RewardRoomScene),
+            ("VendorRoom", VendorRoomScene),
+        };
+        foreach (var entry in AdditionalRoomTemplates)
+            entries.Add((entry.Key, entry.Value));
+        return new DungeonInstantiator(entries);
+    }
 
     // -------- Debug API --------
     // Surfaces used by Scripts/Debug/DebugOverlay.cs. Intentionally narrow:

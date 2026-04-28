@@ -9,6 +9,10 @@ public record DungeonGeneratorOptions(
     bool PlaceBossKeyLock = true,
     ContentTier ContentTier = ContentTier.Onboarding)
 {
+    // Init-only so existing positional construction stays valid; sectors with
+    // their own template pools (Medical Wing, etc.) override via `with` syntax.
+    public TemplatePool TemplatePool { get; init; } = TemplatePool.Default;
+
     public void Validate()
     {
         if (MinRoomCount < 2)
