@@ -130,10 +130,52 @@ public class DungeonGeneratorTests
     [Fact]
     public void Generate_DifferentSeedsProduceDifferentLayouts()
     {
-        // Probabilistic: across many seed pairs, at least one pair must differ.
-        var layouts = SampleSeeds.Select(s => DungeonGenerator.Generate(s)).ToList();
-        var distinctSignatures = layouts.Select(LayoutSignature).Distinct().Count();
-        Assert.True(distinctSignatures > 1, "all sample seeds produced identical layouts — RNG not affecting structure");
+        // Stronger than ">1 distinct": across 50 sequential seeds, RNG should produce mostly-unique
+        // structures. A regression that, say, ignores the RNG for some step would collapse this count.
+        var distinctSignatures = Enumerable.Range(0, 50)
+            .Select(s => LayoutSignature(DungeonGenerator.Generate(s)))
+            .Distinct()
+            .Count();
+        Assert.True(distinctSignatures >= 30,
+            $"only {distinctSignatures}/50 distinct layouts — RNG barely affecting structure");
+    }
+
+    [Fact]
+    public void Generate_DefaultOptions_NeverFallsShortAcrossManySeeds()
+    {
+        // The growth loop has an `if (candidates.Count == 0) break;` escape hatch that would silently
+        // ship a layout below MinRoomCount. With default options on an unbounded grid this should
+        // never trip — pin that down across a wide seed sweep.
+        var defaults = new DungeonGeneratorOptions();
+        for (var seed = 0; seed < 500; seed++)
+        {
+            var layout = DungeonGenerator.Generate(seed);
+            Assert.InRange(layout.RoomCount, defaults.MinRoomCount, defaults.MaxRoomCount);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_DoorsConnectGridAdjacentRooms(int seed)
+    {
+        // For every door A.dir → B, B's grid position must be exactly one cell offset from A in `dir`.
+        // Catches malformed back-edges that claim a direction the geometry doesn't support — BFS
+        // placement alone wouldn't notice (it skips already-placed targets), but the cross-check does.
+        var options = new DungeonGeneratorOptions(BackEdgeProbability: 1.0);
+        var layout = DungeonGenerator.Generate(seed, options);
+        var positions = LayoutPositions.ComputeGridPositions(layout);
+
+        foreach (var room in layout.Rooms)
+        {
+            var pos = positions[room.Id];
+            foreach (var (direction, door) in room.Doors)
+            {
+                var expected = pos.Offset(direction);
+                var actual = positions[door.TargetRoomId];
+                Assert.True(expected == actual,
+                    $"seed {seed}: door {room.Id}.{direction} → {door.TargetRoomId}: expected target at {expected}, got {actual}");
+            }
+        }
     }
 
     [Fact]
