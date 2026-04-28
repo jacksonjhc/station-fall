@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Items/ToolPickupNode.cs" id="1_pickup"]
+[ext_resource type="Resource" path="res://Assets/Data/Tools/magnetic_grapple.tres" id="2_tool"]
+
+[sub_resource type="CircleShape2D" id="shape_pickup"]
+radius = 22.0
+
+[node name="ToolPickup" type="Area2D"]
+script = ExtResource("1_pickup")
+Tool = ExtResource("2_tool")
+
+[node name="Sprite" type="Polygon2D" parent="."]
+color = Color(0.85, 0.95, 1.0, 1)
+polygon = PackedVector2Array(-14, -4, -6, -14, 6, -14, 14, -4, 14, 4, 6, 14, -6, 14, -14, 4)
+
+[node name="SpriteCore" type="Polygon2D" parent="."]
+color = Color(0.4, 0.6, 0.85, 1)
+polygon = PackedVector2Array(-6, -6, 6, -6, 6, 6, -6, 6)
+
+[node name="Shape" type="CollisionShape2D" parent="."]
+shape = SubResource("shape_pickup")

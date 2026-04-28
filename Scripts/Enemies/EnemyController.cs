@@ -30,6 +30,7 @@ public partial class EnemyController : CharacterBody2D, IFreezable
 
     public AiState Phase => _snapshot.Phase;
     public EntityStats Stats => _stats;
+    public bool IsBeingPulled => _isBeingPulled;
 
     private TwitchingPatientConfig _config = TwitchingPatientConfig.Default;
     private EnemyAiSnapshot _snapshot = EnemyAiSnapshot.Initial;
@@ -48,6 +49,11 @@ public partial class EnemyController : CharacterBody2D, IFreezable
     private Vector2 _lungeDirection = Vector2.Right;
     private Vector2 _visualFacing = Vector2.Right;
     private RngService? _rng;
+    private bool _isBeingPulled;
+    private Vector2 _pullDestination;
+    private float _pullSpeedPxPerSec;
+    private float _pullArrivalRadiusPx;
+    private int _pendingStaggerFrames;
     private const double HitFlashSeconds = 0.10;
 
     public EnemyController()
@@ -125,6 +131,16 @@ public partial class EnemyController : CharacterBody2D, IFreezable
 
     public override void _PhysicsProcess(double delta)
     {
+        if (_isBeingPulled)
+        {
+            // Magnetic Grapple Light pull: the tool drives this enemy's
+            // position; brain stays paused until arrival, then snaps into
+            // Stagger so the player has the canonical Light follow-up window.
+            TickExternalPull();
+            ApplyVisual();
+            return;
+        }
+
         if (IsFrozen())
         {
             // Don't advance _now or tick the brain during hit-stop; the impact
@@ -321,6 +337,47 @@ public partial class EnemyController : CharacterBody2D, IFreezable
         if (seconds <= 0) return;
         ulong target = Time.GetTicksMsec() + (ulong)(seconds * 1000.0);
         if (target > _frozenUntilTicksMsec) _frozenUntilTicksMsec = target;
+    }
+
+    // Driven by MagneticGrappleTool for the Light PullEnemyToPlayer outcome
+    // (PLANNING.md § Pull rules). Pauses brain ticking, drives position
+    // toward destination, then transitions into Stagger for staggerFramesAfter.
+    //
+    // Stagger duration deviation note: the brain's TickStagger ticks the
+    // enemy's natural config.StaggerFrames, not the grapple's value. For
+    // Twitching Patient that's 10f vs grapple's 8f — close enough for the
+    // slice. PLANNING's "max(current, grapple) never sum" rule lives in
+    // MagneticGrappleRules.CombineStaggerFrames; honoring it precisely
+    // requires a per-stagger override on the brain config — deferred until
+    // there's a stagger-stacking case to test against.
+    public void BeginExternalPull(Vector2 destination, float speedPxPerSec, int staggerFramesAfter, float arrivalRadiusPx)
+    {
+        if (_snapshot.Phase == AiState.Dead) return;
+        _isBeingPulled = true;
+        _pullDestination = destination;
+        _pullSpeedPxPerSec = speedPxPerSec;
+        _pullArrivalRadiusPx = arrivalRadiusPx;
+        _pendingStaggerFrames = staggerFramesAfter;
+        _attackHitbox?.SetActive(false);
+    }
+
+    private void TickExternalPull()
+    {
+        var to = _pullDestination - GlobalPosition;
+        float dist = to.Length();
+        if (dist <= _pullArrivalRadiusPx)
+        {
+            _isBeingPulled = false;
+            Velocity = Vector2.Zero;
+            MoveAndSlide();
+            if (_pendingStaggerFrames > 0)
+                _snapshot = _snapshot with { Phase = AiState.Stagger, PhaseFrame = 0, TimeSinceLosLossSeconds = 0f };
+            _pendingStaggerFrames = 0;
+            return;
+        }
+        var dir = to / dist;
+        Velocity = dir * _pullSpeedPxPerSec;
+        MoveAndSlide();
     }
 
     private void HandleDeath()

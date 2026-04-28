@@ -19,6 +19,10 @@ namespace Stationfall.Godot.Combat;
 //   DoorTrigger        — Area2D door transition zones; mask = PlayerBody.
 //   EnemyBody          — CharacterBody2D for enemies; collides with Walls and PlayerBody.
 //   PlayerHurtbox      — Area2D the player gets hit through; EnemyAttackHitbox masks this.
+//   GrappleTarget      — Area2D the Magnetic Grapple projectile attaches to (anchors,
+//                        future grappable props). Shared across enemies + anchors via
+//                        a separate detection layer so the projectile can distinguish
+//                        them from walls and ordinary hurtboxes.
 public static class CollisionLayers
 {
     public const uint PlayerBody         = 1u << 0; //   1
@@ -29,4 +33,5 @@ public static class CollisionLayers
     public const uint DoorTrigger        = 1u << 5; //  32
     public const uint EnemyBody          = 1u << 6; //  64
     public const uint PlayerHurtbox      = 1u << 7; // 128
+    public const uint GrappleTarget      = 1u << 8; // 256
 }

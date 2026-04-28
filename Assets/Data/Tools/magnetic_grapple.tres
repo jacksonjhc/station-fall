@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ToolResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Items/ToolResource.cs" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+Id = "magnetic_grapple"
+DisplayName = "Magnetic Grapple"
+Kind = 0
+GrappleRangePx = 220.0
+GrappleProjectileSpeedPxPerSec = 520.0
+GrappleWindupFrames = 6
+GrappleCooldownSeconds = 2.5
+GrappleLightStaggerFrames = 8
+GrappleConeSnapHalfAngleRadians = 0.17453293

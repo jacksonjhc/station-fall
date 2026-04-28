@@ -1,8 +1,10 @@
 using Godot;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
+using Stationfall.Core.Tools;
 using Stationfall.Godot.Audio;
 using Stationfall.Godot.Combat;
+using Stationfall.Godot.Items;
 using Stationfall.Godot.UI;
 
 namespace Stationfall.Godot.Player;
@@ -15,6 +17,12 @@ public enum PlayerState
     Attacking,
     Staggered,
     Dead,
+    // Driven by Magnetic Grapple's PullPlayerToAnchor / PullPlayerToTarget /
+    // SplitPullToMidpoint outcomes. Player input is ignored; position is
+    // lerped toward the pull destination by the tool. PLANNING.md gates the
+    // post-attach pull as non-cancellable by default (Grapple Cancel passive
+    // changes that, post-slice).
+    BeingPulled,
 }
 
 public partial class PlayerController : CharacterBody2D, IFreezable
@@ -47,6 +55,9 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     private const float PhysicsFps = 60f;
     private double _now;
     private int _stateFrame;
+    private Vector2 _pullDestination;
+    private float _pullSpeedPxPerSec;
+    private float _pullArrivalRadiusPx;
     // Hit-stop: wall-clock deadline (Godot ticks-msec) until which _PhysicsProcess
     // early-returns. Wall-clock so the freeze doesn't depend on _now, which
     // we deliberately stop advancing during the freeze.
@@ -60,6 +71,8 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     private HurtboxComponent? _hurtbox;
     private Node2D? _visual;
     private GameCamera? _camera;
+    private MagneticGrappleTool? _grappleTool;
+    public ToolKind? EquippedToolKind { get; private set; }
 
     public PlayerController()
     {
@@ -158,6 +171,9 @@ public partial class PlayerController : CharacterBody2D, IFreezable
             case PlayerState.Dead:
                 Velocity = Vector2.Zero;
                 MoveAndSlide();
+                break;
+            case PlayerState.BeingPulled:
+                TickBeingPulled();
                 break;
         }
 
@@ -369,6 +385,61 @@ public partial class PlayerController : CharacterBody2D, IFreezable
             HitBurstPool.Instance?.Burst(GlobalPosition, Vector2.Up, HitBurstPool.BurstKind.PlayerDeath);
             EmitSignal(SignalName.Died);
         }
+    }
+
+    // Driven by MagneticGrappleTool. Locks input until the player's body is
+    // within arrivalRadius of destination, then snaps to Idle. Damage taken
+    // mid-pull still applies; if it kills, Dead supersedes BeingPulled and
+    // the tool sees the state change as "settled" (correctly interrupts).
+    // Equip the player's single tool slot. Phase B ships only Magnetic Grapple
+    // — other ToolKinds log a warning. Pickup-when-occupied (swap-prompt UX
+    // per W5 / PLANNING.md § Tool slot rules) is post-slice; for now a second
+    // EquipTool call no-ops if a tool is already equipped.
+    public bool EquipTool(ToolResource resource)
+    {
+        if (resource.Kind != ToolKind.MagneticGrapple)
+        {
+            GD.PushWarning($"EquipTool: kind {resource.Kind} not implemented yet");
+            return false;
+        }
+        if (_grappleTool != null) return false;
+
+        var tool = new MagneticGrappleTool();
+        tool.Configure(resource.ToGrappleConfig());
+        AddChild(tool);
+        _grappleTool = tool;
+        EquippedToolKind = resource.Kind;
+        return true;
+    }
+
+    public void BeginBeingPulled(Vector2 destination, float speedPxPerSec, float arrivalRadiusPx)
+    {
+        if (State == PlayerState.Dead) return;
+        _pullDestination = destination;
+        _pullSpeedPxPerSec = speedPxPerSec;
+        _pullArrivalRadiusPx = arrivalRadiusPx;
+        ChangeState(PlayerState.BeingPulled);
+    }
+
+    private void TickBeingPulled()
+    {
+        var to = _pullDestination - GlobalPosition;
+        float dist = to.Length();
+        if (dist <= _pullArrivalRadiusPx)
+        {
+            // Snap-to-rest: PLANNING.md is explicit that the pull resolves
+            // with no leftover momentum (no slide). Land in Idle, not Moving,
+            // so Adrenaline / animation logic doesn't latch a movement frame.
+            Velocity = Vector2.Zero;
+            MoveAndSlide();
+            ChangeState(PlayerState.Idle);
+            return;
+        }
+        var dir = to / dist;
+        Velocity = dir * _pullSpeedPxPerSec;
+        Facing = dir;
+        ApplyVisualFacing();
+        MoveAndSlide();
     }
 
     public void Heal(int amount)
