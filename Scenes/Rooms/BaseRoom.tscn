@@ -1,0 +1,238 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Dungeon/RoomController.cs" id="1_room"]
+[ext_resource type="Script" path="res://Scripts/Dungeon/DoorNode.cs" id="2_door"]
+
+[sub_resource type="RectangleShape2D" id="shape_door"]
+size = Vector2(64, 64)
+
+[sub_resource type="RectangleShape2D" id="shape_wall_h_split"]
+size = Vector2(608, 32)
+
+[sub_resource type="RectangleShape2D" id="shape_wall_v_split"]
+size = Vector2(32, 328)
+
+[sub_resource type="RectangleShape2D" id="shape_door_seal"]
+size = Vector2(64, 64)
+
+[node name="BaseRoom" type="Node2D"]
+script = ExtResource("1_room")
+
+[node name="Floor" type="ColorRect" parent="."]
+offset_left = -640.0
+offset_top = -360.0
+offset_right = 640.0
+offset_bottom = 360.0
+color = Color(0.22, 0.22, 0.24, 1)
+mouse_filter = 2
+
+[node name="WallLabel" type="Label" parent="."]
+offset_left = -120.0
+offset_top = -340.0
+offset_right = 120.0
+offset_bottom = -310.0
+text = ""
+horizontal_alignment = 1
+
+[node name="WallTopLeft" type="StaticBody2D" parent="."]
+position = Vector2(-336, -376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallTopLeft"]
+shape = SubResource("shape_wall_h_split")
+
+[node name="WallTopRight" type="StaticBody2D" parent="."]
+position = Vector2(336, -376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallTopRight"]
+shape = SubResource("shape_wall_h_split")
+
+[node name="WallBottomLeft" type="StaticBody2D" parent="."]
+position = Vector2(-336, 376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallBottomLeft"]
+shape = SubResource("shape_wall_h_split")
+
+[node name="WallBottomRight" type="StaticBody2D" parent="."]
+position = Vector2(336, 376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallBottomRight"]
+shape = SubResource("shape_wall_h_split")
+
+[node name="WallRightUpper" type="StaticBody2D" parent="."]
+position = Vector2(656, -196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallRightUpper"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="WallRightLower" type="StaticBody2D" parent="."]
+position = Vector2(656, 196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallRightLower"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="WallLeftUpper" type="StaticBody2D" parent="."]
+position = Vector2(-656, -196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallLeftUpper"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="WallLeftLower" type="StaticBody2D" parent="."]
+position = Vector2(-656, 196)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="WallLeftLower"]
+shape = SubResource("shape_wall_v_split")
+
+[node name="DoorWest" type="Area2D" parent="."]
+position = Vector2(-656, 0)
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("2_door")
+DirectionInt = 3
+SealShapePath = NodePath("../DoorWestSeal/Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="DoorWest"]
+shape = SubResource("shape_door")
+
+[node name="Open" type="ColorRect" parent="DoorWest"]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.4, 0.5, 0.55, 0.8)
+mouse_filter = 2
+
+[node name="Seal" type="ColorRect" parent="DoorWest"]
+visible = false
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.85, 0.30, 0.30, 1)
+mouse_filter = 2
+
+[node name="DoorWestSeal" type="StaticBody2D" parent="."]
+position = Vector2(-656, 0)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="DoorWestSeal"]
+shape = SubResource("shape_door_seal")
+disabled = true
+
+[node name="DoorEast" type="Area2D" parent="."]
+position = Vector2(656, 0)
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("2_door")
+DirectionInt = 1
+SealShapePath = NodePath("../DoorEastSeal/Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="DoorEast"]
+shape = SubResource("shape_door")
+
+[node name="Open" type="ColorRect" parent="DoorEast"]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.4, 0.5, 0.55, 0.8)
+mouse_filter = 2
+
+[node name="Seal" type="ColorRect" parent="DoorEast"]
+visible = false
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.85, 0.75, 0.30, 1)
+mouse_filter = 2
+
+[node name="DoorEastSeal" type="StaticBody2D" parent="."]
+position = Vector2(656, 0)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="DoorEastSeal"]
+shape = SubResource("shape_door_seal")
+disabled = true
+
+[node name="DoorNorth" type="Area2D" parent="."]
+position = Vector2(0, -376)
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("2_door")
+DirectionInt = 0
+SealShapePath = NodePath("../DoorNorthSeal/Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="DoorNorth"]
+shape = SubResource("shape_door")
+
+[node name="Open" type="ColorRect" parent="DoorNorth"]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.4, 0.5, 0.55, 0.8)
+mouse_filter = 2
+
+[node name="Seal" type="ColorRect" parent="DoorNorth"]
+visible = false
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.85, 0.30, 0.30, 1)
+mouse_filter = 2
+
+[node name="DoorNorthSeal" type="StaticBody2D" parent="."]
+position = Vector2(0, -376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="DoorNorthSeal"]
+shape = SubResource("shape_door_seal")
+disabled = true
+
+[node name="DoorSouth" type="Area2D" parent="."]
+position = Vector2(0, 376)
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("2_door")
+DirectionInt = 2
+SealShapePath = NodePath("../DoorSouthSeal/Shape")
+
+[node name="Shape" type="CollisionShape2D" parent="DoorSouth"]
+shape = SubResource("shape_door")
+
+[node name="Open" type="ColorRect" parent="DoorSouth"]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.4, 0.5, 0.55, 0.8)
+mouse_filter = 2
+
+[node name="Seal" type="ColorRect" parent="DoorSouth"]
+visible = false
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.85, 0.30, 0.30, 1)
+mouse_filter = 2
+
+[node name="DoorSouthSeal" type="StaticBody2D" parent="."]
+position = Vector2(0, 376)
+collision_layer = 16
+collision_mask = 0
+[node name="Shape" type="CollisionShape2D" parent="DoorSouthSeal"]
+shape = SubResource("shape_door_seal")
+disabled = true
+
+[node name="PlayerSpawn" type="Node2D" parent="."]
+position = Vector2(0, 0)
