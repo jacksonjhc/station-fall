@@ -57,3 +57,12 @@ public record VendorPedestalState(string ConsumableId, bool Sold) : EntityState
 {
     public override string Kind => "VendorPedestal";
 }
+
+// Tool pickup state. Equipped flips on first contact (the player took the
+// tool). Persists across room exits so the pedestal stays empty on
+// re-entry — the M6 grapple pedestal is one-shot (off-pool, guaranteed via
+// generator integration in Phase C).
+public record ToolPickupState(bool Equipped) : EntityState
+{
+    public override string Kind => "ToolPickup";
+}

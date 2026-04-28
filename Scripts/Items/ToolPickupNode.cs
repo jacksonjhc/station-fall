@@ -1,5 +1,7 @@
 using Godot;
+using Stationfall.Core.Runs;
 using Stationfall.Godot.Combat;
+using Stationfall.Godot.Persistence;
 using Stationfall.Godot.Player;
 
 namespace Stationfall.Godot.Items;
@@ -11,10 +13,11 @@ namespace Stationfall.Godot.Items;
 //
 // Pickup-when-occupied is a swap-prompt UX (W5) — deferred. For now if the
 // player already has a tool, this pedestal silently rejects.
-public partial class ToolPickupNode : Area2D
+public partial class ToolPickupNode : Area2D, IPersistentEntity
 {
     [Signal] public delegate void EquippedEventHandler(string toolId);
 
+    [Export] public string EntityId { get; set; } = "";
     [Export] public ToolResource? Tool { get; set; }
 
     private bool _consumed;
@@ -38,8 +41,25 @@ public partial class ToolPickupNode : Area2D
         if (!player.EquipTool(Tool)) return;
 
         _consumed = true;
+        ApplyConsumedAppearance();
+        EmitSignal(SignalName.Equipped, Tool.Id);
+    }
+
+    private void ApplyConsumedAppearance()
+    {
         Visible = false;
         SetDeferred(Area2D.PropertyName.Monitoring, false);
-        EmitSignal(SignalName.Equipped, Tool.Id);
+    }
+
+    public EntityState? CaptureState() => new ToolPickupState(_consumed);
+
+    public void RestoreState(EntityState state)
+    {
+        if (state is not ToolPickupState s) return;
+        if (s.Equipped)
+        {
+            _consumed = true;
+            ApplyConsumedAppearance();
+        }
     }
 }
