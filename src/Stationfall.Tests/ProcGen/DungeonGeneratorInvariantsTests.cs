@@ -133,7 +133,7 @@ public class DungeonGeneratorInvariantsTests
         if (layout.RoomCount > options.MaxRoomCount)
             yield return $"room count {layout.RoomCount} above MaxRoomCount {options.MaxRoomCount}";
 
-        var allReachable = BfsReachable(layout, layout.EntryRoomId, openOnly: false);
+        var allReachable = BfsReachable(layout, layout.EntryRoomId, keylessOnly: false);
         if (allReachable.Count != layout.RoomCount)
             yield return $"only {allReachable.Count}/{layout.RoomCount} rooms reachable from entry";
 
@@ -198,18 +198,18 @@ public class DungeonGeneratorInvariantsTests
             if (lockedDirected != 2)
                 yield return $"expected exactly 2 KeyLocked door entries (one bidirectional door), got {lockedDirected}";
 
-            var openOnly = BfsReachable(layout, layout.EntryRoomId, openOnly: true);
-            if (openOnly.Contains(boss.Id))
+            var keyless = BfsReachable(layout, layout.EntryRoomId, keylessOnly: true);
+            if (keyless.Contains(boss.Id))
                 yield return $"boss '{boss.Id}' reachable from entry without crossing the lock — chokepoint missing";
 
             foreach (var item in layout.Rooms.Where(r => r.Type == RoomType.Item))
-                if (!openOnly.Contains(item.Id))
+                if (!keyless.Contains(item.Id))
                     yield return $"Item room '{item.Id}' not reachable without crossing the lock";
             foreach (var vendor in layout.Rooms.Where(r => r.Type == RoomType.Vendor))
-                if (!openOnly.Contains(vendor.Id))
+                if (!keyless.Contains(vendor.Id))
                     yield return $"Vendor room '{vendor.Id}' not reachable without crossing the lock";
             foreach (var keyHolder in layout.Rooms.Where(r => r.ContainsKey))
-                if (!openOnly.Contains(keyHolder.Id))
+                if (!keyless.Contains(keyHolder.Id))
                     yield return $"Key room '{keyHolder.Id}' not reachable without crossing the lock";
         }
         else
@@ -245,8 +245,12 @@ public class DungeonGeneratorInvariantsTests
 
     // ----- BFS helpers -----
 
-    private static HashSet<string> BfsReachable(DungeonLayout layout, string fromId, bool openOnly)
+    private static HashSet<string> BfsReachable(DungeonLayout layout, string fromId, bool keylessOnly)
     {
+        // keylessOnly=true: model "what can the player visit before they
+        // have a key?". EnemyLocked doors are kill-clear gates, not key
+        // gates, so they remain passable — the player just clears the
+        // adjacent combat room.
         var seen = new HashSet<string> { fromId };
         var queue = new Queue<string>();
         queue.Enqueue(fromId);
@@ -255,12 +259,17 @@ public class DungeonGeneratorInvariantsTests
             var room = layout.GetRoom(queue.Dequeue());
             foreach (var (_, door) in room.Doors)
             {
-                if (openOnly && door.Type != DoorType.Open) continue;
+                if (keylessOnly && IsKeyOrConditionGate(door.Type)) continue;
                 if (seen.Add(door.TargetRoomId)) queue.Enqueue(door.TargetRoomId);
             }
         }
         return seen;
     }
+
+    private static bool IsKeyOrConditionGate(DoorType type) =>
+        type == DoorType.KeyLocked
+        || type == DoorType.ConditionLocked
+        || type == DoorType.Secret;
 
     private static Dictionary<string, int> BfsDistances(DungeonLayout layout, string fromId)
     {

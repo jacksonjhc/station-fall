@@ -13,6 +13,11 @@ public record DungeonGeneratorOptions(
     // their own template pools (Medical Wing, etc.) override via `with` syntax.
     public TemplatePool TemplatePool { get; init; } = TemplatePool.Default;
 
+    // Hades-style "barred — kill-clear" doors on combat-room boundaries.
+    // True → every Open door touching a Combat room flips to EnemyLocked
+    // (KeyLocked preserved). False → combat rooms ship with Open doors only.
+    public bool LockCombatRoomDoors { get; init; } = true;
+
     public void Validate()
     {
         if (MinRoomCount < 2)

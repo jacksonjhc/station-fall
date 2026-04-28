@@ -107,20 +107,24 @@ public class DungeonGeneratorTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Generate_LocksOnlyTheBossApproach(int seed)
+    public void Generate_LocksOnlyTheBossApproachWithKey(int seed)
     {
-        // After M5-2, exactly one bidirectional door is KeyLocked (the boss
-        // approach). Counting directed entries: that's 2 KeyLocked, rest Open.
+        // Exactly one bidirectional KeyLocked door (the boss approach), so
+        // 2 directed KeyLocked entries. Other doors are Open or EnemyLocked
+        // depending on whether they touch a Combat room.
         var layout = DungeonGenerator.Generate(seed);
-        var locked = 0;
+        var keyLocked = 0;
         foreach (var room in layout.Rooms)
             foreach (var (_, door) in room.Doors)
             {
-                Assert.True(door.Type == DoorType.Open || door.Type == DoorType.KeyLocked,
+                Assert.True(
+                    door.Type == DoorType.Open
+                    || door.Type == DoorType.KeyLocked
+                    || door.Type == DoorType.EnemyLocked,
                     $"seed {seed}: unexpected door type {door.Type}");
-                if (door.Type == DoorType.KeyLocked) locked++;
+                if (door.Type == DoorType.KeyLocked) keyLocked++;
             }
-        Assert.Equal(2, locked);
+        Assert.Equal(2, keyLocked);
     }
 
     [Theory]
@@ -375,15 +379,50 @@ public class DungeonGeneratorTests
     }
 
     [Fact]
-    public void Generate_PlaceBossKeyLockFalse_ShipsLockless()
+    public void Generate_AllLocksDisabled_ShipsAllOpenDoors()
     {
-        var options = new DungeonGeneratorOptions(PlaceBossKeyLock: false);
+        var options = new DungeonGeneratorOptions(PlaceBossKeyLock: false)
+        {
+            LockCombatRoomDoors = false,
+        };
         for (var seed = 0; seed < 20; seed++)
         {
             var layout = DungeonGenerator.Generate(seed, options);
             foreach (var room in layout.Rooms)
                 foreach (var (_, door) in room.Doors)
                     Assert.Equal(DoorType.Open, door.Type);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_CombatRoomDoors_AreEnemyLockedExceptKeyLocked(int seed)
+    {
+        // Every door touching a Combat room must be EnemyLocked or
+        // KeyLocked — never Open. The boss approach (KeyLocked) wins
+        // when the boss-parent is Combat.
+        var layout = DungeonGenerator.Generate(seed);
+        foreach (var room in layout.Rooms)
+        {
+            if (room.Type != RoomType.Combat) continue;
+            foreach (var (dir, door) in room.Doors)
+            {
+                Assert.True(
+                    door.Type == DoorType.EnemyLocked || door.Type == DoorType.KeyLocked,
+                    $"seed {seed}: combat room '{room.Id}' has {dir} door of type {door.Type}");
+            }
+        }
+    }
+
+    [Fact]
+    public void Generate_LockCombatRoomDoorsFalse_LeavesCombatRoomsOpen()
+    {
+        var options = new DungeonGeneratorOptions { LockCombatRoomDoors = false };
+        for (var seed = 0; seed < 25; seed++)
+        {
+            var layout = DungeonGenerator.Generate(seed, options);
+            var enemyLocked = layout.Rooms.SelectMany(r => r.Doors.Values).Count(d => d.Type == DoorType.EnemyLocked);
+            Assert.Equal(0, enemyLocked);
         }
     }
 
@@ -537,8 +576,10 @@ public class DungeonGeneratorTests
 
     private static HashSet<string> BfsReachableSkippingLocks(DungeonLayout layout, string fromId)
     {
-        // Reachability over Open doors only — models "what can the player
-        // visit before they have a key?".
+        // Reachability without crossing a key gate — models "what can the
+        // player visit before they have a key?". EnemyLocked doors are
+        // soft gates (clear the room and walk through), not key-required,
+        // so they count as passable here.
         var seen = new HashSet<string> { fromId };
         var queue = new Queue<string>();
         queue.Enqueue(fromId);
@@ -547,7 +588,9 @@ public class DungeonGeneratorTests
             var room = layout.GetRoom(queue.Dequeue());
             foreach (var (_, door) in room.Doors)
             {
-                if (door.Type != DoorType.Open) continue;
+                if (door.Type == DoorType.KeyLocked) continue;
+                if (door.Type == DoorType.ConditionLocked) continue;
+                if (door.Type == DoorType.Secret) continue;
                 if (seen.Add(door.TargetRoomId)) queue.Enqueue(door.TargetRoomId);
             }
         }

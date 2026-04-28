@@ -48,6 +48,7 @@ public static class DungeonGenerator
         // No lock means no key — placing one would orphan a pickup the run
         // never needs. Keeps key count and lock count in lockstep.
         if (options.PlaceBossKeyLock) PlaceKey(graph, bossId, rng);
+        if (options.LockCombatRoomDoors) ApplyCombatRoomLocks(graph);
         AssignTemplates(graph, rng, options);
         return Materialize(graph, options);
     }
@@ -310,6 +311,34 @@ public static class DungeonGenerator
         if (pool.Count == 0) return;
         var pick = pool[rng.NextInt(0, pool.Count)];
         graph.KeyRooms.Add(pick);
+    }
+
+    // ----- Phase 6.5: combat-room locks -----
+
+    // Every Open door touching a Combat room flips to EnemyLocked on both
+    // sides. KeyLocked (boss approach) is preserved — the key gate wins
+    // when types collide. After this phase a door is in one of three
+    // states: Open (boundary between two non-Combat rooms), EnemyLocked
+    // (touches a Combat room, kill-clear gate), or KeyLocked (boss
+    // approach).
+    private static void ApplyCombatRoomLocks(GraphState graph)
+    {
+        foreach (var roomId in graph.OrderedIds)
+        {
+            if (graph.Types[roomId] != RoomType.Combat) continue;
+            var doors = graph.Doors[roomId];
+            // Snapshot dirs so we can mutate the dict's values without
+            // worrying about enumerator semantics on the partner edge.
+            foreach (var dir in doors.Keys.ToArray())
+            {
+                var edge = doors[dir];
+                if (edge.Type != DoorType.Open) continue;
+                doors[dir] = edge with { Type = DoorType.EnemyLocked };
+                var partnerDir = dir.Opposite();
+                var partnerDoors = graph.Doors[edge.TargetId];
+                partnerDoors[partnerDir] = partnerDoors[partnerDir] with { Type = DoorType.EnemyLocked };
+            }
+        }
     }
 
     // ----- Phase 7: template assignment -----
