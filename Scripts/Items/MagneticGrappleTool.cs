@@ -39,6 +39,10 @@ public partial class MagneticGrappleTool : Node2D
     private double _now;
     private int _windupFrame;
     private Vector2 _aimDirection = Vector2.Right;
+    // Last input device drives the aim fallback when the right stick isn't
+    // engaged: KB+M gets mouse aim, controller gets Facing aim. Tracked at
+    // the input event layer so device switches mid-session route correctly.
+    private bool _lastInputWasController;
     private GrappleProjectile? _activeProjectile;
     private GrappleOutcome? _activeOutcome;
     private Node2D? _activeTarget;
@@ -66,6 +70,20 @@ public partial class MagneticGrappleTool : Node2D
             case Phase.Projectile: TickProjectile(); break;
             case Phase.Pulling:    TickPull(); break;
         }
+    }
+
+    public override void _UnhandledInput(InputEvent ev)
+    {
+        // Track which device was last used so ResolveAim can pick the right
+        // fallback (mouse for KB+M, Facing for controller). Stick motion is
+        // only counted as a "controller event" when the axis crosses the
+        // action's deadzone — otherwise idle drift would flip us to controller.
+        if (ev is InputEventMouseMotion or InputEventMouseButton or InputEventKey)
+            _lastInputWasController = false;
+        else if (ev is InputEventJoypadButton)
+            _lastInputWasController = true;
+        else if (ev is InputEventJoypadMotion m && System.Math.Abs(m.AxisValue) > 0.25f)
+            _lastInputWasController = true;
     }
 
     // The state-gating predicate from PLANNING.md collapsed to a bool.
@@ -154,14 +172,32 @@ public partial class MagneticGrappleTool : Node2D
         return s == PlayerState.Dodging || s == PlayerState.Staggered || s == PlayerState.Dead;
     }
 
-    // Free aim toward the mouse, with cone-snap to nearest valid target
-    // within the cone (PLANNING § Aim model: ~10° half-angle).
+    // Aim priority (PLANNING § Aim model: ~10° half-angle cone-snap):
+    //   1. Right stick (controller precise aim)
+    //   2. Mouse, if the last input came from KB+M
+    //   3. Facing direction — covers "I just want to fire where I'm walking"
+    //      and is the controller-only fallback when the stick is centred.
     private Vector2 ResolveAim()
     {
         if (_player == null) return Vector2.Right;
         var origin = _player.GlobalPosition;
-        var raw = _player.GetGlobalMousePosition() - origin;
-        if (raw.LengthSquared() < 0.001f) raw = _player.Facing;
+
+        Vector2 raw;
+        var stick = Input.GetVector("aim_left", "aim_right", "aim_up", "aim_down");
+        if (stick.LengthSquared() > 0.04f) // |stick| > 0.2
+        {
+            raw = stick;
+        }
+        else if (!_lastInputWasController)
+        {
+            var mouseDelta = _player.GetGlobalMousePosition() - origin;
+            raw = mouseDelta.LengthSquared() > 0.001f ? mouseDelta : _player.Facing;
+        }
+        else
+        {
+            raw = _player.Facing;
+        }
+        if (raw.LengthSquared() < 0.001f) raw = Vector2.Right;
         var dir = raw.Normalized();
 
         var snap = FindConeSnapTarget(origin, dir);
