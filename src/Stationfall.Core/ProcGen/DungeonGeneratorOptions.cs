@@ -21,5 +21,9 @@ public record DungeonGeneratorOptions(
             throw new ArgumentOutOfRangeException(nameof(ItemRoomCount), ItemRoomCount, "ItemRoomCount must be >= 0.");
         if (VendorRoomCount < 0)
             throw new ArgumentOutOfRangeException(nameof(VendorRoomCount), VendorRoomCount, "VendorRoomCount must be >= 0.");
+        // Locking the boss approach requires somewhere to put the key. Smallest
+        // viable lockable layout: entry + key room + boss = 3 rooms.
+        if (PlaceBossKeyLock && MinRoomCount < 3)
+            throw new ArgumentOutOfRangeException(nameof(MinRoomCount), MinRoomCount, "MinRoomCount must be >= 3 when PlaceBossKeyLock is true (entry + key room + boss).");
     }
 }

@@ -47,7 +47,9 @@ public static class DungeonGenerator
         IsolateBoss(graph, bossId);
         if (options.PlaceBossKeyLock) LockBossApproach(graph, bossId);
         AssignBranchTypes(graph, bossId, rng, options);
-        PlaceKey(graph, bossId, rng);
+        // No lock means no key — placing one would orphan a pickup the run
+        // never needs. Keeps key count and lock count in lockstep.
+        if (options.PlaceBossKeyLock) PlaceKey(graph, bossId, rng);
         return Materialize(graph, options);
     }
 
