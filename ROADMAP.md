@@ -270,16 +270,27 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 **M5 ✅** — procedural dungeon generator end-to-end. `DungeonGenerator.Generate(seed)` produces deterministic layouts via spanning-tree growth + back-edges → boss selection at max BFS depth + boss isolation → KeyLocked boss approach + key placement → branch-room typing (Item / Vendor) → EnemyLocked combat-room boundaries → per-RoomType template assignment from `TemplatePool`. `DungeonInstantiator` (Godot) resolves template names to `PackedScene` via a data-driven registry that replaces the M4-era hard-coded switch. Five generic 4-door room scenes (`Entry_Generic`, `Combat_Generic`, `Item_Generic`, `Vendor_Generic`, `Boss_Generic`) cover the slice; `BaseRoom.tscn` is the scaffold for sector-specific variants in M9. `RunState.Seed` per-run, `DungeonRoot.UseGeneratedLayout` toggle ships M2Sandbox as a debug fixture (not removed). 388/388 Core tests green at M5 close, including a 16-invariant battery × ~4,300 seed sweep covering connectivity, key-reachability, lock chokepoint integrity, content-tier propagation, and template-pool determinism.
 
+**M6 ✅** — Magnetic Grapple end-to-end. Core layer: `MassClass` enum on `EnemyDefinition`, `ToolDefinition` + `MagneticGrappleConfig`/`State`, pure `MagneticGrappleRules` (per-MassClass outcome resolution, range, ~10° cone-snap, cooldown gating, `max(current, grapple)` stagger combine). Godot layer: `MagneticGrappleTool` orchestrator (Idle → Windup → Projectile → Pulling → Cooldown), `GrappleProjectile` (520 px/s with wall raycast + range expiry), `GrappleAnchor` static prop on a new `GrappleTarget` collision layer, `ToolPickupNode` (persistent via `IPersistentEntity` / `ToolPickupState`), `ToolResource` + `magnetic_grapple.tres`. Player gains a tool slot + `BeingPulled` state; `EnemyController` gains `BeginExternalPull` driving the Light pull-target case. Generator integration: new `RoomType.ToolPedestal` claims one room per layout (off-pool, reserved before Item/Vendor) emitting the `ToolPedestal_Generic` template, with invariant-sweep coverage across counts 0/1/2 × 200 seeds asserting keyless reachability. Controller-first input: RB fire + right-stick aim with movement-direction fallback (last-input device tracked at the event layer so KB+M still uses mouse aim). Feel pass: 6f windup tint on the player visual, cyan hit-burst on attach (`GrappleHit`), grey puff on miss (`GrappleMiss`), top-right HUD readiness/cooldown widget, dev-side `GD.Print` of every projectile resolution. 422/422 Core tests green at M6 close.
+
 ### Up next — workshop gates block all remaining implementation milestones
 
 | Milestone | Gating workshops |
 |-----------|------------------|
-| **M6** — Magnetic Grapple | W5 (Tools section) |
 | **M7** — Item room + synergies | W5 (Passives) + W6 (Synergies) |
 | **M8** — Mini-boss + meta currency | W4 (Bosses) + W9 (Difficulty Tier) |
 | **M9** — Sector 1 vertical slice | W3 ✓, W4, W5, W6, W8, W10 |
 
-**Highest-leverage next workshop:** W5 (Items: Passives, Tools, Consumables) — unblocks M6, M7, and contributes to M9. M6 and M7 are otherwise the natural follow-on implementation milestones.
+**Highest-leverage next workshop:** W5 passives + W6 synergies, in that order — together they unblock M7 (the synergy pipeline proof). The W5 tools section that gated M6 is already promoted; only the passives and consumables sub-tracks remain pending.
+
+### M6 deferred items (carried forward)
+
+Captured here so they don't get lost between milestones — none gate M7+ but each is worth picking up before / during M9:
+
+- **Hazard-teach + traversal-teach dedicated rooms.** PLANNING § Magnetic Grapple lists four target rooms (pedestal · combat-teach · hazard-teach · traversal-teach). The pedestal ships via the generator and combat / traversal both work in any room with a Light enemy / `GrappleAnchor`, but no hazard system exists yet — hazard-teach lands when hazards do (Sector 1 content pass).
+- **Stagger-frames precision.** `EnemyController.BeginExternalPull` uses the enemy's natural `StaggerFrames` (10 for Twitching Patient) instead of the grapple's spec value (8). PLANNING's `max(current, grapple) never sum` rule lives in `MagneticGrappleRules.CombineStaggerFrames`; honoring it precisely needs a per-stagger override on the brain config — defer until a stagger-stacking case actually exists.
+- **Heavy / Medium / Boss outcome paths.** Wired but untestable — Bio-Seal Orderly (Heavy) and Convulsing Body / Corrupted Medbot (Medium) land with the Sector 1 roster in M9; Boss `AnchorPoint` choreography is W4.
+- **Reticle iconography.** PLANNING § Reticle iconography table (inward arrow, split-pull double-arrow, anchor, broken-link). Phase B has cone-snap auto-aim but no on-screen reticle — sits naturally with the M9 polish pass.
+- **Pickup-when-occupied swap prompt.** Currently silent reject if the player already carries a tool. Becomes meaningful only once a second tool exists in the pool (Slingshot is next per PLANNING).
 
 ### Workshops still pending
 
