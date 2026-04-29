@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/Vendor_Generic.tscn" id="11_ch0un"]
 [ext_resource type="Script" uid="uid://bgsmlqrymt08o" path="res://Scripts/Audio/Sfx.cs" id="11_sfx"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/Boss_Generic.tscn" id="12_cl2uv"]
+[ext_resource type="PackedScene" path="res://Scenes/Rooms/ToolPedestal_Generic.tscn" id="17_pedestal"]
 [ext_resource type="Script" uid="uid://ddqxnqv15iaet" path="res://Scripts/Items/CreditsService.cs" id="12_credits"]
 [ext_resource type="Script" uid="uid://cvi2iugorg2nv" path="res://Scripts/UI/CreditCounter.cs" id="13_counter"]
 [ext_resource type="Script" uid="uid://cucm8kcfsdltb" path="res://Scripts/Items/KeysService.cs" id="14_keys"]
@@ -50,6 +51,7 @@ CombatGenericScene = ExtResource("9_bxtgv")
 ItemGenericScene = ExtResource("10_ukeut")
 VendorGenericScene = ExtResource("11_ch0un")
 BossGenericScene = ExtResource("12_cl2uv")
+ToolPedestalGenericScene = ExtResource("17_pedestal")
 UseGeneratedLayout = true
 
 [node name="Backdrop" type="ColorRect" parent="." unique_id=853251278]

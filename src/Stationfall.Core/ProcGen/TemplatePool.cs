@@ -15,6 +15,7 @@ public sealed record TemplatePool(IReadOnlyDictionary<RoomType, IReadOnlyList<st
         [RoomType.Item] = new[] { "Item_Generic" },
         [RoomType.Vendor] = new[] { "Vendor_Generic" },
         [RoomType.Boss] = new[] { "Boss_Generic" },
+        [RoomType.ToolPedestal] = new[] { "ToolPedestal_Generic" },
     });
 
     public IReadOnlyList<string> For(RoomType type)

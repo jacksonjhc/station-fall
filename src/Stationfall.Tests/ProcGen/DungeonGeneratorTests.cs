@@ -131,8 +131,9 @@ public class DungeonGeneratorTests
     [MemberData(nameof(Seeds))]
     public void Generate_RoomTypesAreEntryBossItemVendorOrCombat(int seed)
     {
-        // Default options should produce exactly one each of Entry/Boss/Item/Vendor;
-        // every other room is Combat. Empty is reserved — M5-2 doesn't emit it.
+        // Default options should produce exactly one each of Entry/Boss/Item/
+        // Vendor/ToolPedestal; every other room is Combat. Empty is reserved
+        // — M5-2 doesn't emit it.
         var layout = DungeonGenerator.Generate(seed);
         var counts = new Dictionary<RoomType, int>();
         foreach (var room in layout.Rooms)
@@ -142,12 +143,13 @@ public class DungeonGeneratorTests
         Assert.Equal(1, counts.GetValueOrDefault(RoomType.Boss));
         Assert.Equal(1, counts.GetValueOrDefault(RoomType.Item));
         Assert.Equal(1, counts.GetValueOrDefault(RoomType.Vendor));
+        Assert.Equal(1, counts.GetValueOrDefault(RoomType.ToolPedestal));
         Assert.Equal(0, counts.GetValueOrDefault(RoomType.Empty));
         Assert.Equal(0, counts.GetValueOrDefault(RoomType.Secret));
         Assert.Equal(0, counts.GetValueOrDefault(RoomType.MidBoss));
         Assert.Equal(0, counts.GetValueOrDefault(RoomType.Narrative));
         var combat = counts.GetValueOrDefault(RoomType.Combat);
-        Assert.Equal(layout.RoomCount - 4, combat);
+        Assert.Equal(layout.RoomCount - 5, combat);
     }
 
     [Fact]
@@ -447,6 +449,7 @@ public class DungeonGeneratorTests
             [RoomType.Item] = new[] { "Custom_Item" },
             [RoomType.Vendor] = new[] { "Custom_Vendor" },
             [RoomType.Boss] = new[] { "Custom_Boss" },
+            [RoomType.ToolPedestal] = new[] { "Custom_ToolPedestal" },
         });
         var options = new DungeonGeneratorOptions { TemplatePool = pool };
         var layout = DungeonGenerator.Generate(7, options);
@@ -467,6 +470,7 @@ public class DungeonGeneratorTests
             [RoomType.Item] = new[] { "Item_Generic" },
             [RoomType.Vendor] = new[] { "Vendor_Generic" },
             [RoomType.Boss] = new[] { "Boss_Generic" },
+            [RoomType.ToolPedestal] = new[] { "ToolPedestal_Generic" },
         });
         var options = new DungeonGeneratorOptions { TemplatePool = pool };
         var seenCombatTemplates = new HashSet<string>();
@@ -503,6 +507,7 @@ public class DungeonGeneratorTests
             [RoomType.Item] = new[] { "Item_Generic" },
             [RoomType.Vendor] = new[] { "Vendor_Generic" },
             [RoomType.Boss] = new[] { "Boss_Generic" },
+            [RoomType.ToolPedestal] = new[] { "ToolPedestal_Generic" },
         });
         var options = new DungeonGeneratorOptions { TemplatePool = pool };
         Assert.Throws<InvalidOperationException>(() => DungeonGenerator.Generate(0, options));
@@ -521,6 +526,7 @@ public class DungeonGeneratorTests
             [RoomType.Item] = new[] { "I" },
             [RoomType.Vendor] = new[] { "V" },
             [RoomType.Boss] = new[] { "B" },
+            [RoomType.ToolPedestal] = new[] { "P" },
         });
         var poolB = new TemplatePool(new Dictionary<RoomType, IReadOnlyList<string>>
         {
@@ -529,6 +535,7 @@ public class DungeonGeneratorTests
             [RoomType.Item] = new[] { "I" },
             [RoomType.Vendor] = new[] { "V" },
             [RoomType.Boss] = new[] { "B" },
+            [RoomType.ToolPedestal] = new[] { "P" },
         });
         var a = DungeonGenerator.Generate(42, new DungeonGeneratorOptions { TemplatePool = poolA });
         var b = DungeonGenerator.Generate(42, new DungeonGeneratorOptions { TemplatePool = poolB });

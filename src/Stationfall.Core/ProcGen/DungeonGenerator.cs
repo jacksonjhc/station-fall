@@ -267,16 +267,18 @@ public static class DungeonGenerator
 
     // ----- Phase 5: branch room types -----
 
-    // Item then Vendor, drawn without replacement from non-Entry / non-Boss
-    // rooms. Ordering by OrderedIds keeps the sample space stable per seed.
-    // Falls through silently if there aren't enough rooms — small layouts
-    // may legitimately ship without a vendor or item room.
+    // ToolPedestal then Item then Vendor, drawn without replacement from non-
+    // Entry / non-Boss rooms. Ordering by OrderedIds keeps the sample space
+    // stable per seed. Falls through silently if there aren't enough rooms —
+    // small layouts may legitimately ship without a vendor or item room (the
+    // pedestal claims first because the slice depends on the grapple grant).
     private static void AssignBranchTypes(GraphState graph, string bossId, RngService rng, DungeonGeneratorOptions options)
     {
         var pool = new List<string>();
         foreach (var id in graph.OrderedIds)
             if (id != EntryRoomId && id != bossId) pool.Add(id);
 
+        AssignType(pool, RoomType.ToolPedestal, options.ToolPedestalRoomCount, rng, graph);
         AssignType(pool, RoomType.Item, options.ItemRoomCount, rng, graph);
         AssignType(pool, RoomType.Vendor, options.VendorRoomCount, rng, graph);
 

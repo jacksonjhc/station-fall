@@ -78,6 +78,19 @@ public class DungeonGeneratorInvariantsTests
             new DungeonGeneratorOptions(ItemRoomCount: items, VendorRoomCount: vendors));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ToolPedestalCountVariations_HoldInvariants(int pedestals)
+    {
+        // Sector 1 ships pedestals=1 (grapple grant); Sector 2+ may set 0
+        // when the run already carries the grapple. Generator caps silently
+        // when pedestals exceed the non-reserved pool.
+        AssertInvariantSweep(seedCount: 200,
+            new DungeonGeneratorOptions(ToolPedestalRoomCount: pedestals));
+    }
+
     [Fact]
     public void Validate_RejectsMinRoomCountBelowThreeWhenLockEnabled()
     {
@@ -208,6 +221,9 @@ public class DungeonGeneratorInvariantsTests
             foreach (var vendor in layout.Rooms.Where(r => r.Type == RoomType.Vendor))
                 if (!keyless.Contains(vendor.Id))
                     yield return $"Vendor room '{vendor.Id}' not reachable without crossing the lock";
+            foreach (var pedestal in layout.Rooms.Where(r => r.Type == RoomType.ToolPedestal))
+                if (!keyless.Contains(pedestal.Id))
+                    yield return $"ToolPedestal room '{pedestal.Id}' not reachable without crossing the lock";
             foreach (var keyHolder in layout.Rooms.Where(r => r.ContainsKey))
                 if (!keyless.Contains(keyHolder.Id))
                     yield return $"Key room '{keyHolder.Id}' not reachable without crossing the lock";
@@ -218,12 +234,19 @@ public class DungeonGeneratorInvariantsTests
                 yield return $"PlaceBossKeyLock=false but {lockedDirected} KeyLocked door entries present";
         }
 
+        // ToolPedestal claims first (pedestal is the M6 grant), then Item,
+        // then Vendor. Each cap is silently truncated by remaining pool size.
         var nonReservedPool = Math.Max(0, layout.RoomCount - 2); // entry + boss
-        var expectedItems = Math.Min(options.ItemRoomCount, nonReservedPool);
-        var afterItems = Math.Max(0, nonReservedPool - expectedItems);
+        var expectedPedestals = Math.Min(options.ToolPedestalRoomCount, nonReservedPool);
+        var afterPedestals = Math.Max(0, nonReservedPool - expectedPedestals);
+        var expectedItems = Math.Min(options.ItemRoomCount, afterPedestals);
+        var afterItems = Math.Max(0, afterPedestals - expectedItems);
         var expectedVendors = Math.Min(options.VendorRoomCount, afterItems);
+        var actualPedestals = layout.Rooms.Count(r => r.Type == RoomType.ToolPedestal);
         var actualItems = layout.Rooms.Count(r => r.Type == RoomType.Item);
         var actualVendors = layout.Rooms.Count(r => r.Type == RoomType.Vendor);
+        if (actualPedestals != expectedPedestals)
+            yield return $"expected {expectedPedestals} ToolPedestal rooms, got {actualPedestals}";
         if (actualItems != expectedItems)
             yield return $"expected {expectedItems} Item rooms, got {actualItems}";
         if (actualVendors != expectedVendors)

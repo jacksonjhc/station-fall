@@ -38,6 +38,7 @@ public partial class DungeonRoot : Node2D
     [Export] public PackedScene? ItemGenericScene { get; set; }
     [Export] public PackedScene? VendorGenericScene { get; set; }
     [Export] public PackedScene? BossGenericScene { get; set; }
+    [Export] public PackedScene? ToolPedestalGenericScene { get; set; }
 
     // M5-5 toggle: false → M2Sandbox (existing behaviour, M2-specific scenes
     // wired above); true → DungeonGenerator.Generate(_runState.Seed) plus the
@@ -370,6 +371,7 @@ public partial class DungeonRoot : Node2D
             ("Item_Generic", ItemGenericScene),
             ("Vendor_Generic", VendorGenericScene),
             ("Boss_Generic", BossGenericScene),
+            ("ToolPedestal_Generic", ToolPedestalGenericScene),
         };
         foreach (var entry in AdditionalRoomTemplates)
             entries.Add((entry.Key, entry.Value));

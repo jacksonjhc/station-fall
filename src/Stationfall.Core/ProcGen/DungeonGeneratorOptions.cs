@@ -6,6 +6,7 @@ public record DungeonGeneratorOptions(
     double BackEdgeProbability = 0.2,
     int ItemRoomCount = 1,
     int VendorRoomCount = 1,
+    int ToolPedestalRoomCount = 1,
     bool PlaceBossKeyLock = true,
     ContentTier ContentTier = ContentTier.Onboarding)
 {
@@ -30,6 +31,8 @@ public record DungeonGeneratorOptions(
             throw new ArgumentOutOfRangeException(nameof(ItemRoomCount), ItemRoomCount, "ItemRoomCount must be >= 0.");
         if (VendorRoomCount < 0)
             throw new ArgumentOutOfRangeException(nameof(VendorRoomCount), VendorRoomCount, "VendorRoomCount must be >= 0.");
+        if (ToolPedestalRoomCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(ToolPedestalRoomCount), ToolPedestalRoomCount, "ToolPedestalRoomCount must be >= 0.");
         // Locking the boss approach requires somewhere to put the key. Smallest
         // viable lockable layout: entry + key room + boss = 3 rooms.
         if (PlaceBossKeyLock && MinRoomCount < 3)
