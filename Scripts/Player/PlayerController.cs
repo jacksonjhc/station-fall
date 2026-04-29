@@ -181,13 +181,20 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         ApplyIFrameTint();
     }
 
-    // Cyan tint while i-frames are live so the dodge punish window (last 3
-    // recovery frames per W2) reads as visibly different from the safe window.
+    // Tint priority (highest first):
+    //   - Dodge i-frames    → cyan, marks the safe window
+    //   - Grapple windup    → pale violet for ~6f, telegraphs incoming fire
+    //   - default            → white
+    // The two never coexist — grapple gating blocks fire while dodging — so
+    // the layering is just for read-the-state cleanliness.
     private static readonly Color IFrameTint = new(0.6f, 0.9f, 1.0f);
+    private static readonly Color WindupTint = new(0.85f, 0.75f, 1.0f);
     private void ApplyIFrameTint()
     {
         if (_visual is not CanvasItem ci) return;
-        ci.Modulate = HasIFramesNow() ? IFrameTint : Colors.White;
+        if (HasIFramesNow()) ci.Modulate = IFrameTint;
+        else if (_grappleTool != null && _grappleTool.IsWindingUp) ci.Modulate = WindupTint;
+        else ci.Modulate = Colors.White;
     }
 
     // Returns true if the input switched state out of Idle/Moving — caller must skip ApplyMovement,

@@ -118,6 +118,10 @@ public partial class GrappleProjectile : Area2D
         Payload = payload;
         SetDeferred(Area2D.PropertyName.Monitoring, false);
         GD.Print($"[grapple] hit {payload.MassClass} ({payload.Target?.Name ?? "(no node)"}) at {payload.HitPosition}");
+        // No burst on NoEffect outcomes (Boss/Immovable) — those should read
+        // as "bounced off"; only successful attaches get the cyan flash.
+        if (payload.MassClass != MassClass.Immovable && payload.MassClass != MassClass.Boss)
+            HitBurstPool.Instance?.Burst(payload.HitPosition, -Direction, HitBurstPool.BurstKind.GrappleHit);
         EmitSignal(SignalName.Resolved);
         QueueFree();
     }
@@ -128,6 +132,7 @@ public partial class GrappleProjectile : Area2D
         Payload = new AttachPayload(MassClass.Immovable, null, at);
         SetDeferred(Area2D.PropertyName.Monitoring, false);
         GD.Print($"[grapple] miss at {at}");
+        HitBurstPool.Instance?.Burst(at, -Direction, HitBurstPool.BurstKind.GrappleMiss);
         EmitSignal(SignalName.Resolved);
         QueueFree();
     }

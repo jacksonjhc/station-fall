@@ -46,6 +46,10 @@ public partial class MagneticGrappleTool : Node2D
     }
     public double CooldownSecondsRemaining => System.Math.Max(0.0, _state.CooldownEndsAtSeconds - _now);
     public bool IsReady => _now >= _state.CooldownEndsAtSeconds && _phase == Phase.Idle;
+    // Surfaced for the player visual telegraph: brief tint during the 6f
+    // windup so the fire is readable as "I'm about to throw" rather than
+    // an instant projectile pop-in.
+    public bool IsWindingUp => _phase == Phase.Windup;
 
     private PlayerController? _player;
     private MagneticGrappleState _state = MagneticGrappleState.Initial;

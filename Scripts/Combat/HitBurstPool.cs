@@ -24,6 +24,13 @@ public partial class HitBurstPool : Node2D
         DamageTaken,
         EnemyDeath,
         PlayerDeath,
+        // Cyan spark fan at the projectile's resolution point. Reads as
+        // "the grapple connected" and visually reinforces the icon palette
+        // shared by GrappleAnchor / GrappleProjectile / cooldown HUD.
+        GrappleHit,
+        // Small grey puff at the projectile's wall / range-out position.
+        // Without this, dry-fires felt like the projectile vanished.
+        GrappleMiss,
     }
 
     public const string Group = "hit_burst_pool";
@@ -141,6 +148,16 @@ public partial class HitBurstPool : Node2D
             SpreadDegrees: 180, SpeedMin: 80, SpeedMax: 180,
             ScaleMin: 0.40f, ScaleMax: 0.75f, Damping: 1.5f, GravityY: -30,
             Color: new Color(0.95f, 0.30f, 0.30f, 0.95f)),
+        BurstKind.GrappleHit => new BurstConfig(
+            UseSmoke: false, Amount: 10, Lifetime: 0.30,
+            SpreadDegrees: 360, SpeedMin: 140, SpeedMax: 280,
+            ScaleMin: 0.18f, ScaleMax: 0.32f, Damping: 6f, GravityY: 0,
+            Color: new Color(0.70f, 0.95f, 1.0f)),
+        BurstKind.GrappleMiss => new BurstConfig(
+            UseSmoke: true, Amount: 6, Lifetime: 0.40,
+            SpreadDegrees: 360, SpeedMin: 30, SpeedMax: 80,
+            ScaleMin: 0.18f, ScaleMax: 0.32f, Damping: 4f, GravityY: -10,
+            Color: new Color(0.65f, 0.70f, 0.78f, 0.7f)),
         _ => default,
     };
 
