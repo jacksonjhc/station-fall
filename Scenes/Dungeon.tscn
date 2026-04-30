@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://ddqxnqv15iaet" path="res://Scripts/Items/CreditsService.cs" id="12_credits"]
 [ext_resource type="Script" uid="uid://cvi2iugorg2nv" path="res://Scripts/UI/CreditCounter.cs" id="13_counter"]
 [ext_resource type="Script" uid="uid://cucm8kcfsdltb" path="res://Scripts/Items/KeysService.cs" id="14_keys"]
+[ext_resource type="Script" path="res://Scripts/Items/PassivesService.cs" id="14_passives"]
 [ext_resource type="Script" uid="uid://bc78cwvfjhs5w" path="res://Scripts/UI/KeyCounter.cs" id="15_keycount"]
 [ext_resource type="Script" path="res://Scripts/UI/ToolCooldownIndicator.cs" id="16_toolcd"]
 [ext_resource type="PackedScene" path="res://Scenes/Rooms/EntryRoom.tscn" id="scene_entry"]
@@ -168,6 +169,9 @@ script = ExtResource("12_credits")
 [node name="KeysService" type="Node" parent="." unique_id=1452419956]
 script = ExtResource("14_keys")
 
+[node name="PassivesService" type="Node" parent="."]
+script = ExtResource("14_passives")
+
 [node name="Debug" type="CanvasLayer" parent="." unique_id=2083984275]
 process_mode = 3
 script = ExtResource("6_debug")
@@ -176,10 +180,10 @@ script = ExtResource("6_debug")
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -440.0
+offset_left = -480.0
 offset_top = 16.0
 offset_right = -16.0
-offset_bottom = 84.0
+offset_bottom = 116.0
 
 [node name="Status" type="Label" parent="Debug/Panel" unique_id=2041951250]
 layout_mode = 2

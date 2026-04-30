@@ -31,6 +31,10 @@ public partial class HitBurstPool : Node2D
         // Small grey puff at the projectile's wall / range-out position.
         // Without this, dry-fires felt like the projectile vanished.
         GrappleMiss,
+        // Pirouette finisher (M7): outward 360° spark ring centered on the
+        // player. Placeholder telegraph for the radial sweep — a real swing
+        // arc / shader pass lands with M9 polish.
+        PirouetteRing,
     }
 
     public const string Group = "hit_burst_pool";
@@ -158,6 +162,11 @@ public partial class HitBurstPool : Node2D
             SpreadDegrees: 360, SpeedMin: 30, SpeedMax: 80,
             ScaleMin: 0.18f, ScaleMax: 0.32f, Damping: 4f, GravityY: -10,
             Color: new Color(0.65f, 0.70f, 0.78f, 0.7f)),
+        BurstKind.PirouetteRing => new BurstConfig(
+            UseSmoke: false, Amount: 32, Lifetime: 0.45,
+            SpreadDegrees: 360, SpeedMin: 280, SpeedMax: 360,
+            ScaleMin: 0.30f, ScaleMax: 0.50f, Damping: 6f, GravityY: 0,
+            Color: new Color(1.0f, 0.78f, 0.30f, 0.95f)),
         _ => default,
     };
 

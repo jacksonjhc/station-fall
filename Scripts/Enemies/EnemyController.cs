@@ -17,7 +17,7 @@ namespace Stationfall.Godot.Enemies;
 //
 // Collision layers/masks: see Scripts/Combat/CollisionLayers.cs for the
 // project-wide bit assignments referenced by both .tscn files and code.
-public partial class EnemyController : CharacterBody2D, IFreezable
+public partial class EnemyController : CharacterBody2D, IFreezable, IStatusReceiver
 {
     [Signal] public delegate void DiedEventHandler();
 
@@ -55,6 +55,12 @@ public partial class EnemyController : CharacterBody2D, IFreezable
     private float _pullArrivalRadiusPx;
     private int _pendingStaggerFrames;
     private const double HitFlashSeconds = 0.10;
+    // Statuses applied by player-side passives (Curtain Call's Slow today).
+    // Per PLANNING § Sedative Dart: refresh on re-apply, no magnitude stack.
+    // StatusTracker enforces both rules; we just query its multipliers each
+    // tick when computing chase speed and (future) lunge timings.
+    private readonly StatusTracker _status = new();
+    private static readonly Color SlowedTint = new(0.55f, 0.75f, 1.0f);
 
     public EnemyController()
     {
@@ -224,7 +230,7 @@ public partial class EnemyController : CharacterBody2D, IFreezable
                 MoveAndSlide();
                 break;
             case AiState.Chase:
-                MoveTowardPlayer(_config.ChaseMoveSpeedPxPerSec);
+                MoveTowardPlayer(_config.ChaseMoveSpeedPxPerSec * _status.MoveSpeedMultiplier(_now));
                 break;
             case AiState.Attack:
                 ExecuteAttackPhase();
@@ -328,6 +334,12 @@ public partial class EnemyController : CharacterBody2D, IFreezable
             // Stagger interrupts an in-flight attack — make sure the hitbox stops dealing damage.
             _attackHitbox?.SetActive(false);
         }
+    }
+
+    public void ApplyStatus(StatusEffect effect)
+    {
+        if (_snapshot.Phase == AiState.Dead) return;
+        _status.Apply(effect, _now);
     }
 
     public bool IsFrozen() => Time.GetTicksMsec() < _frozenUntilTicksMsec;
@@ -472,7 +484,12 @@ public partial class EnemyController : CharacterBody2D, IFreezable
         }
         bool inWindup = _snapshot.Phase == AiState.Attack && _snapshot.PhaseFrame < _config.LungeWindupFrames;
         bool inStagger = _snapshot.Phase == AiState.Stagger;
-        _bodyVisual.Modulate = (inWindup || inStagger) ? _windupColor : _baseColor;
+        // Status tint takes precedence over windup/stagger so the player can
+        // read the active Slow on a Twitching Patient even mid-lunge — useful
+        // for confirming Curtain Call's Slow application during M7 playtests.
+        bool slowed = _status.IsActive(StatusKind.Slowed, _now);
+        if (slowed) _bodyVisual.Modulate = SlowedTint;
+        else _bodyVisual.Modulate = (inWindup || inStagger) ? _windupColor : _baseColor;
     }
 
     private static ComboStep BuildLungeStep(TwitchingPatientConfig cfg) => new(

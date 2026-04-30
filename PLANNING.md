@@ -297,10 +297,31 @@ Spatial, player-skill-driven. Think Link's Awakening crossed with Hades.
 
 **Melee combat model:**
 - Default attack input is a **3-hit combo** (light/light/heavy). Combo length is per-weapon and modifiable by pickups (`Refrain` adds +1 step, capped at +2 over weapon base).
-- Each combo step has a **6-frame cancel window** at the start of recovery — pressing attack inside it chains; outside it, combo resets.
 - **Dodge cancels any frame ≥ end-of-windup.** Attacks cannot cancel into other attacks (only the chain advances).
 - **Hit-stop applies to both attacker and target**, target frozen ~2× longer (sells weight on attacker, impact on target).
 - **Vessels always carry a weapon.** Each vessel ships with a default weapon matching its identity. Found weapons replace the held weapon; there is no "bare-hands" state.
+
+**Combo continuation feel** *(input-feel tuning, distinct from item rules):*
+
+Genre target is action-adventure / character-action rhythm (Hollow Knight, Bayonetta light strings). **Not** fighting-game precision. Three separate concepts gate "the next attack":
+
+| Concept | Default | Purpose |
+|---|---|---|
+| **In-swing buffer** (`AttackInputBufferFrames`) | 12 frames | A press during the late part of the swing chains when recovery ends. Window: `[recoveryStart − 12f, totalFrames)` — entire recovery counts. |
+| **Continuation grace** (`ComboContinuationGraceFrames`) | 24 frames | After a swing fully recovers without a buffered chain, a press from Idle/Moving inside this window advances to the next combo step. Outside it, the next press starts back at step 1. |
+| **Old 6-frame cancel window** (`ComboStep.CancelWindowFrames`) | 6 frames | Legacy / reference value. **Not the only valid combo input window.** Reserved for optional precision rewards (e.g. a future "perfect cancel" perk that grants extra damage on a tight chain). Required basic chaining must not depend on it. |
+
+Combo continuation is **intentionally forgiving**. A player pressing attack at a natural action-adventure cadence (~6 swings/sec or slower) reaches the finisher without mashing inside any tight window. Test sweep for tuning passes:
+- 8 / 18 frames — tighter
+- 12 / 24 frames — default
+- 12 / 30 frames — very forgiving
+
+Live-tunable from the debug console: `combo buffer <frames>` and `combo grace <frames>`.
+
+**Buffer hygiene rules** (prevent leftover input from firing after the player changes their mind):
+- **Max one queued attack.** `_attackBufferedFrame` is a single int, not a queue — mashing overwrites itself; at most one chain attack is ever scheduled per swing.
+- **Higher-priority intent clears the buffer:** dodge, tool use, taking damage, entering stagger, death, being pulled. `ChangeState` into Dodging/Staggered/Dead/BeingPulled funnels the clear; `tool_use` press is detected per-frame in PlayerController; `TakeDamage` clears explicitly when the hit lands.
+- **Attacks stay committed once they start.** The buffer only decides whether the next attack starts after the current attack legally finishes — never cancels the current swing into another swing early.
 
 **Weapon roster (slice):**
 

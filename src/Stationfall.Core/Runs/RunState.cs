@@ -13,6 +13,12 @@ public class RunState
     public DungeonState Dungeon { get; } = new();
     public CreditWallet Credits { get; } = new();
     public KeyPouch GenericKeys { get; } = new();
+    public ActivePassives Passives { get; } = new();
+    // M7 demo gate: the first item room of the run offers the locked
+    // Refrain → Pirouette → Curtain Call chain (one passive per pedestal).
+    // Once a chain pedestal is consumed in that room, the gate flips and
+    // subsequent item rooms route through real W5 roll weights.
+    public bool M7DemoOfferingConsumed { get; private set; }
     public IReadOnlyList<string> NarrativeFlags => _narrativeFlags.AsReadOnly();
 
     private readonly List<string> _narrativeFlags = [];
@@ -29,4 +35,5 @@ public class RunState
     public void DescendFloor() => Floor++;
     public void AddNarrativeFlag(string flag) => _narrativeFlags.Add(flag);
     public bool HasFlag(string flag) => _narrativeFlags.Contains(flag);
+    public void MarkM7DemoOfferingConsumed() => M7DemoOfferingConsumed = true;
 }

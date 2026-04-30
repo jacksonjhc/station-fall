@@ -66,3 +66,16 @@ public record ToolPickupState(bool Equipped) : EntityState
 {
     public override string Kind => "ToolPickup";
 }
+
+// Passive pedestal state. PassiveId pins the M7 chain link assigned to this
+// pedestal (Refrain / Pirouette / Curtain Call) — deterministic for the M7
+// demo room, eventually re-rolled per W5 weights for normal item rooms.
+// Claimed flips on pickup; claimed pedestals desaturate and reject further
+// interaction. PLANNING § "1-of-3 pedestal" rule (W5 / W7) — picking one
+// passive removes the *room*'s offerings, not just the pedestal: when a
+// pedestal is claimed, the other two pedestals in the same room mark
+// themselves Claimed too via DungeonState lookup.
+public record PassivePedestalState(string PassiveId, bool Claimed) : EntityState
+{
+    public override string Kind => "PassivePedestal";
+}

@@ -112,6 +112,7 @@ public partial class DungeonRoot : Node2D
         // their own _Ready see the initial balance via the change-emit.
         CreditsService.Instance?.Bind(_runState);
         KeysService.Instance?.Bind(_runState);
+        PassivesService.Instance?.Bind(_runState);
 
         EnterRoom(Layout.EntryRoomId, fromDirection: null);
     }

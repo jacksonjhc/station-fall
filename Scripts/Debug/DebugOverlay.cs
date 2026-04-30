@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Stationfall.Core.Combat;
+using Stationfall.Core.Items;
 using Stationfall.Godot.Combat;
 using Stationfall.Godot.Dungeon;
 using Stationfall.Godot.Items;
@@ -181,6 +182,9 @@ public partial class DebugOverlay : CanvasLayer
         "hb" => CmdToggleHitboxViz(),
         "seed" => CmdSeed(args),
         "give" => CmdGive(args),
+        "combo" => CmdCombo(args),
+        "weapon" => CmdWeapon(args),
+        "m7test" => CmdM7Test(),
         "help" or "?" => CmdHelp(),
         _ => $"unknown: {cmd} (try 'help')",
     };
@@ -188,23 +192,184 @@ public partial class DebugOverlay : CanvasLayer
     private string CmdGive(string[] args)
     {
         if (args.Length == 0)
-            return "usage: give <key|credit> [amount]";
-        int amount = 1;
-        if (args.Length >= 2 && !int.TryParse(args[1], out amount))
-            return "amount must be an integer";
+            return "usage: give <key|credit|passive> [amount|passive_id]";
         switch (args[0].ToLowerInvariant())
         {
             case "key":
+            {
                 if (KeysService.Instance == null) return "keys service not ready";
+                int amount = ParseAmountOrDefault(args, 1, 1);
                 KeysService.Instance.Add(amount);
                 return $"+{amount} key (now {KeysService.Instance.Count})";
+            }
             case "credit":
+            {
                 if (CreditsService.Instance == null) return "credits service not ready";
+                int amount = ParseAmountOrDefault(args, 1, 1);
                 CreditsService.Instance.Add(amount);
                 return $"+{amount} credit (now {CreditsService.Instance.Balance})";
+            }
+            case "passive":
+                return GivePassive(args);
             default:
-                return $"unknown item '{args[0]}'; try: key, credit";
+                return $"unknown item '{args[0]}'; try: key, credit, passive";
         }
+    }
+
+    private static int ParseAmountOrDefault(string[] args, int index, int fallback) =>
+        args.Length > index && int.TryParse(args[index], out var n) ? n : fallback;
+
+    // Accepts a passive id (PassiveCatalog.RefrainId etc.) or a short name
+    // (refrain / pirouette / curtain_call / cc). Idempotent up to stack cap.
+    private string GivePassive(string[] args)
+    {
+        if (PassivesService.Instance == null) return "passives service not ready";
+        if (args.Length < 2)
+            return "usage: give passive <refrain|pirouette|curtain_call|all>";
+        var token = args[1].ToLowerInvariant();
+        if (token == "all")
+        {
+            var summary = new List<string>();
+            foreach (var def in PassiveCatalog.M7DemoOffering)
+            {
+                bool added = PassivesService.Instance.TryAdd(def);
+                int count = PassivesService.Instance.GetStackCount(def.Id);
+                summary.Add($"{def.DisplayName}{(added ? "" : " (cap)")} x{count}");
+            }
+            return "granted: " + string.Join(", ", summary);
+        }
+        var resolved = ResolvePassive(token);
+        if (resolved == null) return $"no passive '{token}'; try: refrain, pirouette, curtain_call";
+        bool ok = PassivesService.Instance.TryAdd(resolved);
+        int stack = PassivesService.Instance.GetStackCount(resolved.Id);
+        return ok
+            ? $"+ {resolved.DisplayName} (stack {stack}/{resolved.StackCap})"
+            : $"{resolved.DisplayName} at stack cap ({resolved.StackCap})";
+    }
+
+    private static ItemDefinition? ResolvePassive(string token) => token switch
+    {
+        "refrain" or "r" => PassiveCatalog.Refrain,
+        "pirouette" or "p" => PassiveCatalog.Pirouette,
+        "curtain_call" or "curtaincall" or "cc" or "c" => PassiveCatalog.CurtainCall,
+        _ => PassiveCatalog.FindById(token),
+    };
+
+    // `combo`              — dump current combo state.
+    // `combo buffer <n>`   — set AttackInputBufferFrames at runtime.
+    // `combo grace <n>`    — set ComboContinuationGraceFrames at runtime.
+    private string CmdCombo(string[] args)
+    {
+        if (_player == null) return "player not ready";
+        if (args.Length == 0) return DumpCombo();
+
+        if (args.Length < 2 || !int.TryParse(args[1], out var n))
+            return "usage: combo | combo buffer <frames> | combo grace <frames>";
+        n = Math.Max(0, n);
+        switch (args[0].ToLowerInvariant())
+        {
+            case "buffer":
+                _player.AttackInputBufferFrames = n;
+                return $"buffer = {n} frames";
+            case "grace":
+                _player.ComboContinuationGraceFrames = n;
+                return $"grace = {n} frames";
+            default:
+                return $"unknown: combo {args[0]}; try buffer|grace";
+        }
+    }
+
+    private string DumpCombo()
+    {
+        if (_player == null) return "player not ready";
+        var mods = _player.ComboMods;
+        var passives = PassivesService.Instance?.Passives;
+        string passiveSummary = "—";
+        if (passives != null && passives.Stacks.Count > 0)
+        {
+            passiveSummary = string.Join(", ", passives.Stacks.Select(kv => $"{kv.Key}×{kv.Value}"));
+        }
+        return string.Join("\n",
+            FormatComboLine(_player),
+            $"length: {mods.FinalComboLength} (+{mods.ExtraComboSteps})",
+            $"finisher shape: {mods.FinisherShape} | dmg×{mods.FinisherDamageMultiplier} | status: {(mods.FinisherStatus?.Kind.ToString() ?? "—")}",
+            $"passives: {passiveSummary}",
+            $"buffer: {_player.AttackInputBufferFrames} frames | grace: {_player.ComboContinuationGraceFrames} frames");
+    }
+
+    // Player-readable 1-indexed combo line. During grace this shows the
+    // last-completed step (so a sustained "Combo: 2 / 3" while the player
+    // walks around between presses confirms the chain is still live).
+    private static string FormatComboLine(PlayerController p)
+    {
+        var mods = p.ComboMods;
+        int len = mods.FinalComboLength;
+        if (!p.HasComboLineToShow) return $"Combo: — / {len}";
+
+        int displayStep = p.ComboIndex + 1;
+        bool finisher = mods.IsFinisher(p.ComboIndex);
+        bool radial = finisher && mods.FinisherShape == ComboFinisherShape.Surround360;
+        string suffix =
+            finisher && radial ? " FINISHER RADIAL" :
+            finisher ? " FINISHER" :
+            "";
+        return $"Combo: {displayStep} / {len}{suffix}";
+    }
+
+    // Cadence A/B test: swap the player's held weapon between the default
+    // Sword (4/3/8 · 4/3/8 · 8/4/14 = 56f chained) and SwordSlow (5/4/11 ·
+    // 5/4/11 · 9/5/17 = 71f chained) to compare action-adventure feel
+    // before either becomes the design-doc default.
+    private string CmdWeapon(string[] args)
+    {
+        if (_player == null) return "player not ready";
+        if (args.Length == 0)
+        {
+            var w = _player.Weapon;
+            string steps = string.Join(" · ", w.ComboSteps.Select(
+                s => $"{s.WindupFrames}/{s.ActiveFrames}/{s.RecoveryFrames}"));
+            int total = w.ComboSteps.Sum(s => s.TotalFrames);
+            return $"current: {w.Name} — {steps}  (total {total}f)\nuse: weapon sword | weapon sword_slow";
+        }
+        var token = args[0].ToLowerInvariant();
+        WeaponDefinition? next = token switch
+        {
+            "sword" or "fast" or "default" => WeaponDefinition.Sword,
+            "sword_slow" or "slow" => WeaponDefinition.SwordSlow,
+            _ => null,
+        };
+        if (next == null) return $"unknown weapon '{token}'; try sword | sword_slow";
+        _player.SwapWeapon(next);
+        int totalFrames = next.ComboSteps.Sum(s => s.TotalFrames);
+        return $"weapon → {next.Name} (combo total {totalFrames}f chained)";
+    }
+
+    // M7 manual test: give Pirouette and ring the player with three Twitching
+    // Patients (front / back-left / back-right) so the radial finisher can be
+    // verified against front/side/back enemies in one swing.
+    private string CmdM7Test()
+    {
+        if (_player == null || _dungeon == null) return "player or dungeon not ready";
+        if (_registry == null) return "registry not ready";
+        if (PassivesService.Instance == null) return "passives service not ready";
+
+        var def = _registry.Resolve("twitching_patient");
+        if (def == null) return "no twitching_patient enemy resource — check Assets/Data/Enemies/";
+
+        // Three angles around the player at radius slightly larger than the
+        // patient's melee range so they don't immediately lunge before the
+        // player can swing. 0° = right, 120°, 240° gives a balanced fan.
+        const float ringRadius = 110f;
+        float[] anglesRad = { 0f, 2.0944f, 4.1888f };
+        int spawned = 0;
+        foreach (var rad in anglesRad)
+        {
+            var offset = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)) * ringRadius;
+            if (_dungeon.TrySpawnEnemy(def, _player.GlobalPosition + offset)) spawned++;
+        }
+
+        bool addedPirouette = PassivesService.Instance.TryAdd(PassiveCatalog.Pirouette);
+        return $"M7 test: +Pirouette ({(addedPirouette ? "new" : "already had")}), spawned {spawned}/3 patients";
     }
 
     private string CmdSpawn(string[] args)
@@ -281,7 +446,12 @@ public partial class DebugOverlay : CanvasLayer
         "killall       kill every enemy in dungeon",
         "hb            toggle hitbox/hurtbox viz",
         "seed [n]      show / set run seed",
-        "give <type> [n]  grant key|credit");
+        "give <type> [n]  key|credit [n] / passive <id|all>",
+        "combo                  dump live combo state",
+        "combo buffer <frames>  set in-swing input buffer",
+        "combo grace  <frames>  set post-swing continuation grace",
+        "weapon [sword|sword_slow]  swap between cadence A/B test weapons",
+        "m7test        give Pirouette + spawn 3 patients in a ring");
 
     private static string JoinIds(IEnumerable<string> ids)
     {
@@ -310,11 +480,28 @@ public partial class DebugOverlay : CanvasLayer
     private void Refresh()
     {
         if (_status == null || _player == null) return;
+        string passiveLine = BuildPassiveLine();
         _status.Text =
             $"hp {_player.Stats.Hp}/{_player.Stats.MaxHp}  " +
             $"state {_player.State}  " +
             $"god {(_player.GodMode ? "ON" : "off")}  " +
             $"adrenaline {(_player.SignatureState.BuffActive ? "ACTIVE" : (_player.SignatureState.Queued ? "queued" : "—"))}\n" +
+            $"{FormatComboLine(_player)}  passives: {passiveLine}\n" +
+            $"buffer {_player.AttackInputBufferFrames}f  grace {_player.ComboContinuationGraceFrames}f  " +
             "F1 god  F2 dmg  F3 seed  F4 heal  F5 dump  ` console";
+    }
+
+    private static string BuildPassiveLine()
+    {
+        var passives = PassivesService.Instance?.Passives;
+        if (passives == null || passives.Stacks.Count == 0) return "—";
+        var parts = new List<string>(passives.Stacks.Count);
+        foreach (var (id, stacks) in passives.Stacks)
+        {
+            var def = PassiveCatalog.FindById(id);
+            string name = def?.DisplayName ?? id;
+            parts.Add(stacks > 1 ? $"{name}×{stacks}" : name);
+        }
+        return string.Join(", ", parts);
     }
 }

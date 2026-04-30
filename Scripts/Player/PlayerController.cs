@@ -1,6 +1,7 @@
 using Godot;
 using Stationfall.Core.Combat;
 using Stationfall.Core.Entities;
+using Stationfall.Core.Items;
 using Stationfall.Core.Tools;
 using Stationfall.Godot.Audio;
 using Stationfall.Godot.Combat;
@@ -38,6 +39,34 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     [Export] public NodePath VisualPath { get; set; } = "Visual";
     [Export] public NodePath CameraPath { get; set; } = "Camera";
 
+    // Combo input feel — three separate concepts:
+    //
+    //   1. Commitment.       During Attacking the player cannot enter a new
+    //                        attack early. They can only buffer the next press.
+    //   2. In-swing buffer.  Press during the late part of the swing → chained
+    //                        when recovery ends. Window:
+    //                          [recoveryStart - AttackInputBufferFrames, totalFrames)
+    //                        (entire recovery counts; 12-frame pre-recovery
+    //                        cushion lets a press just before recovery start
+    //                        still chain.)
+    //   3. Continuation grace. After recovery fully completes with no in-swing
+    //                        buffer, the combo stays alive for
+    //                        ComboContinuationGraceFrames. Pressing attack from
+    //                        Idle/Moving inside that window advances to the
+    //                        next combo step. Outside it, the press starts a
+    //                        fresh combo at step 0.
+    //
+    // The 6-frame ComboStep.CancelWindowFrames constant is no longer the only
+    // chain-eligible window — it now lives only as a reference value for
+    // future "perfect-cancel" timing rewards. The broader buffer + grace
+    // pair carries normal-cadence play.
+    [Export] public int AttackInputBufferFrames { get; set; } = 12;
+    [Export] public int ComboContinuationGraceFrames { get; set; } = 24;
+    // Radius for the Pirouette finisher hitbox. Sword reach is medium (≈90°
+    // sweep at ~62 px); 80 px for the ring keeps roughly the same bite range
+    // but applied around the player. Playtest-tunable.
+    [Export] public float PirouetteRadius { get; set; } = 80f;
+
     // Vessel defaults to Clone for the M1 sandbox scene (BootstrapRoot has no
     // RunState to inject from). DungeonRoot calls Configure() with the vessel
     // off RunState before reading Stats, so a real run uses whatever vessel
@@ -67,6 +96,42 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     private double _comboResetAt;
     private bool _comboBuffered;
     private bool _attackHasHit;
+    // Latest frame within the active swing on which attack was pressed. Read
+    // at end-of-recovery to decide whether to chain — see TickAttack.
+    // ComboInputResolver.NoPress (-1) means "no press captured this swing."
+    //
+    // **Max-one-queued invariant:** this field is a single int, not a queue.
+    // Mashing during a swing overwrites with the latest frame so at most one
+    // chain attack is ever scheduled. The chain-decision site explicitly
+    // resets to NoPress on consumption (defense-in-depth alongside the
+    // EnterAttack reset), so a buffered press cannot leak past one swing.
+    // ChangeState into Dodging/Staggered/Dead/BeingPulled also clears via
+    // ClearAttackBuffer.
+    private int _attackBufferedFrame = ComboInputResolver.NoPress;
+    // Snapshot of combo modifiers resolved from active passives at the start
+    // of each EnterAttack (M7). Cached for the lifetime of the swing so a
+    // pickup landing mid-swing doesn't change the active step's behavior;
+    // the next EnterAttack picks the new mods up.
+    private ComboModifiers _comboMods = ComboModifiers.Default(WeaponDefinition.Sword);
+
+    // Read-only debug surface for the M7 readability overlay (DebugOverlay
+    // queries these each frame). They're already used internally — exposing
+    // does not change behavior.
+    //
+    // ComboIndex semantics:
+    //   - During Attacking: index of the active step.
+    //   - During Idle/Moving + ComboInGrace: index of the LAST COMPLETED step
+    //     (next press chains to ComboIndex+1 if available).
+    //   - During Idle/Moving + !ComboInGrace: stale; treat as "no combo".
+    public int ComboIndex => _comboIndex;
+    public ComboModifiers ComboMods => _comboMods;
+    public bool ComboInGrace => State != PlayerState.Attacking && _now < _comboResetAt;
+    public bool IsCurrentStepFinisher => State == PlayerState.Attacking && _comboMods.IsFinisher(_comboIndex);
+    public bool IsCurrentFinisherRadial => IsCurrentStepFinisher && _comboMods.FinisherShape == ComboFinisherShape.Surround360;
+    // True when the player just completed any step (in grace) — used by the
+    // overlay to keep showing the combo line briefly after a non-finisher
+    // tail, instead of flickering to "—" between presses.
+    public bool HasComboLineToShow => State == PlayerState.Attacking || ComboInGrace;
     private HitboxComponent? _attackHitbox;
     private HurtboxComponent? _hurtbox;
     private Node2D? _visual;
@@ -122,6 +187,19 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
     }
 
+    // Live weapon swap for the cadence A/B pass. Intentionally not gated on
+    // anything in the run model — this is a debug-console hook that lets the
+    // playtester compare default Sword vs SwordSlow timings without
+    // restarting. Resets combo state so a mid-chain swap doesn't leave the
+    // player at index 2 of a weapon that only has 3 steps anyway.
+    public void SwapWeapon(WeaponDefinition weapon)
+    {
+        Weapon = weapon;
+        _comboIndex = 0;
+        _comboResetAt = 0;
+        ClearAttackBuffer();
+    }
+
     private void ApplyVessel()
     {
         Stats = Vessel.BaseStats;
@@ -147,7 +225,20 @@ public partial class PlayerController : CharacterBody2D, IFreezable
 
         SignatureState = AdrenalineRushRule.Tick(SignatureState, _now, SignatureConfig);
 
-        // Combo timeout — outside cancel window, reset.
+        // Tool-use press cancels any in-flight buffered attack so a player
+        // who changes their mind mid-swing ("not another swing — grapple")
+        // doesn't get a chain attack after the grapple resolves. We clear
+        // unconditionally on the press; the tool's own gate (Idle/Moving)
+        // decides whether the press actually fires the tool. Either way the
+        // buffered chain is the wrong outcome once the player has signalled
+        // tool intent. Dodge / damage / stagger / death / being-pulled are
+        // all routed through ChangeState which clears the buffer there.
+        if (Input.IsActionJustPressed("tool_use")) ClearAttackBuffer();
+
+        // Continuation grace expired — drop _comboIndex back to 0 so the next
+        // attack press starts a fresh chain. Only relevant when _comboIndex
+        // > 0 (after step 0 the index already sits at 0; the grace window
+        // still elapses but there's nothing to clear).
         if (_comboIndex > 0 && _now >= _comboResetAt && State != PlayerState.Attacking)
         {
             _comboIndex = 0;
@@ -208,6 +299,15 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         }
         if (Input.IsActionJustPressed("attack"))
         {
+            // Continuation grace: pressing attack from a grounded state while
+            // a previous swing's grace window is still open advances to the
+            // next combo step. _comboIndex was preserved at swing-end as the
+            // last-completed step. Outside the grace window — or after the
+            // finisher (no next step exists) — start a fresh combo at step 0.
+            bool inGrace = _now < _comboResetAt;
+            bool hasNext = _comboIndex + 1 < _comboMods.FinalComboLength;
+            if (inGrace && hasNext) _comboIndex++;
+            else _comboIndex = 0;
             EnterAttack();
             return true;
         }
@@ -281,18 +381,48 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         _stateFrame = 0;
         _attackHasHit = false;
         _comboBuffered = false;
+        _attackBufferedFrame = ComboInputResolver.NoPress;
+
+        // Resolve combo modifiers fresh at swing start so a passive picked up
+        // between swings (Refrain mid-room, e.g.) takes effect immediately.
+        var passives = PassivesService.Instance?.Passives;
+        _comboMods = passives != null
+            ? ComboModifiers.Resolve(Weapon, passives)
+            : ComboModifiers.Default(Weapon);
+
+        bool isFinisher = _comboMods.IsFinisher(_comboIndex);
+        var step = ComboResolver.StepAt(Weapon, _comboIndex, _comboMods);
+
         if (_attackHitbox != null)
         {
             _attackHitbox.SetActive(false);
+            // Pirouette: finisher only — body steps keep the directional sweep.
+            bool radial = isFinisher && _comboMods.FinisherShape == ComboFinisherShape.Surround360;
+            _attackHitbox.SetRadialMode(radial, PirouetteRadius);
             _attackHitbox.SetFacing(Facing);
-            _attackHitbox.SetCurrentStep(Weapon.StepAt(_comboIndex));
+            _attackHitbox.SetCurrentStep(step);
             _attackHitbox.AttackerStats = Stats;
+            // Curtain Call: +50% damage and Slow application — finisher only.
+            _attackHitbox.Modifiers = isFinisher
+                ? new DamageModifiers(Multiplier: _comboMods.FinisherDamageMultiplier)
+                : DamageModifiers.None;
+            _attackHitbox.PendingFinisherStatus = isFinisher ? _comboMods.FinisherStatus : null;
+
+            // Pirouette readability: telegraph the radial finisher with a ring
+            // particle burst, debug print, and (later) a louder hit cue. Spawn
+            // here at swing start — players read the ring as the wind-up sweep
+            // before the active frames land.
+            if (radial)
+            {
+                HitBurstPool.Instance?.Burst(GlobalPosition, Vector2.Right, HitBurstPool.BurstKind.PirouetteRing);
+                GD.Print($"[combo] PIROUETTE finisher start  index={_comboIndex} length={_comboMods.FinalComboLength} radius={PirouetteRadius}");
+            }
         }
     }
 
     private void TickAttack()
     {
-        var step = Weapon.StepAt(_comboIndex);
+        var step = ComboResolver.StepAt(Weapon, _comboIndex, _comboMods);
         Velocity = Vector2.Zero;
         MoveAndSlide();
 
@@ -304,14 +434,28 @@ public partial class PlayerController : CharacterBody2D, IFreezable
             return;
         }
 
-        // Active phase: enable hitbox.
+        // Active phase: enable hitbox. Note: combo progression is purely
+        // input-driven — `_attackHasHit` only deactivates the hitbox so a
+        // single swing can't multi-tap the same enemy. A whiffed swing still
+        // chains the next step normally if the player buffered an input.
         bool inActiveWindow = _stateFrame >= step.WindupFrames && _stateFrame < step.WindupFrames + step.ActiveFrames;
         if (_attackHitbox != null) _attackHitbox.SetActive(inActiveWindow && !_attackHasHit);
 
-        // Cancel window for combo: first 6 recovery frames, attack input chains.
+        // In-swing buffer: capture every attack press during the swing.
+        // JustPressed is edge-triggered, so holding the button does NOT
+        // refresh the buffer — a held attack still produces only one
+        // captured frame (the initial press, which started this swing and
+        // has already been reset to NoPress in EnterAttack). End-of-
+        // recovery eligibility is decided by ComboInputResolver, which
+        // explicitly rejects the NoPress sentinel — without that guard, a
+        // generous AttackInputBufferFrames pushes windowStart below 0 and
+        // -1 satisfies the range, causing a single press to auto-chain the
+        // entire combo. Pinned in ComboInputResolverTests.
+        if (Input.IsActionJustPressed("attack")) _attackBufferedFrame = _stateFrame;
+
         int recoveryStart = step.WindupFrames + step.ActiveFrames;
-        bool inCancelWindow = _stateFrame >= recoveryStart && _stateFrame < recoveryStart + ComboStep.CancelWindowFrames;
-        if (inCancelWindow && Input.IsActionJustPressed("attack"))
+        if (ComboInputResolver.ShouldChain(
+                _attackBufferedFrame, recoveryStart, step.TotalFrames, AttackInputBufferFrames))
         {
             _comboBuffered = true;
         }
@@ -320,15 +464,28 @@ public partial class PlayerController : CharacterBody2D, IFreezable
         if (_stateFrame >= step.TotalFrames)
         {
             DeactivateHitbox();
-            if (_comboBuffered && _comboIndex + 1 < Weapon.ComboLength)
+            // Refrain extends FinalComboLength past the weapon's authored
+            // ComboLength; chain off that so extra body hits feed the
+            // finisher slot at the end.
+            if (_comboBuffered && _comboIndex + 1 < _comboMods.FinalComboLength)
             {
+                // Explicit consumption — reset BEFORE EnterAttack so the
+                // buffered intent is observably cleared even if any future
+                // hook between here and EnterAttack reads these fields.
+                _comboBuffered = false;
+                _attackBufferedFrame = ComboInputResolver.NoPress;
                 _comboIndex++;
                 EnterAttack();
             }
             else
             {
-                _comboIndex = 0;
-                _comboResetAt = _now;
+                // No in-swing chain. Open the continuation grace window —
+                // _comboIndex stays at the last-completed step so HandleGround
+                // edInput can advance from it. Top-of-process resets to 0
+                // when the grace window expires without an input.
+                _comboResetAt = _now + Math.Max(0, ComboContinuationGraceFrames) / (double)PhysicsFps;
+                _comboBuffered = false;
+                _attackBufferedFrame = ComboInputResolver.NoPress;
                 ChangeState(PlayerState.Idle);
                 _stateFrame = 0;
             }
@@ -353,7 +510,10 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     private void OnAttackHitLanded(Node2D target, int amount, bool armorBroken, bool killed)
     {
         NotifyHitLanded();
-        bool heavy = Weapon.StepAt(_comboIndex).IsHeavy;
+        // Use the resolved step (Refrain shifts the heavy slot to a later
+        // index; ComboResolver routes the finisher to the weapon's authored
+        // heavy step regardless).
+        bool heavy = ComboResolver.StepAt(Weapon, _comboIndex, _comboMods).IsHeavy;
         _camera?.AddTrauma(heavy ? 0.30f : 0.10f);
     }
 
@@ -367,6 +527,11 @@ public partial class PlayerController : CharacterBody2D, IFreezable
 
         Stats = Stats.ApplyDamage(result);
         EmitSignal(SignalName.HealthChanged, Stats.Hp, Stats.MaxHp);
+        // A hit that actually lands cancels any pending chain attack — a
+        // buffered press from before the hit shouldn't fire after hit-stop.
+        // ChangeState into Dead (below) re-clears, but most damage doesn't
+        // kill, so do it explicitly here too.
+        ClearAttackBuffer();
 
         // Per W2 trauma table: damage taken (1 HP) 0.25, heavy hit taken 0.50.
         // No "heavy attack taken" data on DamageResult yet — bracket via amount
@@ -466,7 +631,29 @@ public partial class PlayerController : CharacterBody2D, IFreezable
     private void ChangeState(PlayerState next)
     {
         if (State == next) return;
+        // Higher-priority intent — Dodging / Staggered / Dead / BeingPulled —
+        // overrides any pending chain attack. Without this clear, a buffered
+        // attack from earlier in the swing could fire after dodge completes
+        // or after a stagger ends, betraying the player's later input.
+        // Idle / Moving / Attacking transitions don't clear: those are the
+        // normal swing-end and chain-start paths, where EnterAttack already
+        // resets the buffer fresh.
+        if (next == PlayerState.Dodging || next == PlayerState.Staggered ||
+            next == PlayerState.Dead || next == PlayerState.BeingPulled)
+        {
+            ClearAttackBuffer();
+        }
         State = next;
         EmitSignal(SignalName.StateChanged, (int)next);
+    }
+
+    // Drop any pending chain-attack intent. Safe to call repeatedly. Combo
+    // chain length / grace timer / _comboIndex are NOT touched here — the
+    // chain can still naturally continue if the player opts back in by
+    // pressing attack inside the grace window.
+    private void ClearAttackBuffer()
+    {
+        _attackBufferedFrame = ComboInputResolver.NoPress;
+        _comboBuffered = false;
     }
 }
