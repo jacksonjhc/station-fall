@@ -29,7 +29,7 @@ A workshop need not finish in one session. "Partial completion" is fine — part
 | W2 | Combat Feel & Weapon Patterns | Decisions promoted | M1, M3.5 |
 | W3 | Enemy Roster & Archetype Detail | Decisions promoted | M3, M9 |
 | W4 | Bosses & Mid-Bosses | Not started | M8, M9 |
-| W5 | Items: Passives, Tools, Consumables | **Tools + tagging + rarity decisions promoted; passives + consumables roster outstanding** | M6, M7, M9 |
+| W5 | Items: Passives, Tools, Consumables | **Tools + tagging + rarity + passives roster + M7 chain decisions promoted; full consumable pool + cursed acquisition path outstanding** | M6, M7, M9 |
 | W6 | Synergies | Not started | M7 |
 | W7 | Dungeon Elements & Mechanics | Decisions promoted | M2, M5 |
 | W8 | Sector Themes (Sector 1 deep dive) | Not started | M9 |
@@ -225,8 +225,8 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 
 ## W5 — Items: Passives, Tools, Consumables
 
-**Status:** Tools + tagging + rarity decisions promoted (full spec in [PLANNING.md § Items, Tools, Modules](PLANNING.md#items-tools-modules)). Passives roster + M7 synergy chain + full consumable roster + cursed acquisition path **outstanding** — to be picked up in a future W5 session, interleaved with W6 per the suggested run order.
-**Gates:** M6 ✓ (Grapple unblocked), M7 (passives chain still owed), M9 (full pool still owed)
+**Status:** Tools + tagging + rarity + passives roster + M7 synergy chain decisions promoted (full spec in [PLANNING.md § Items, Tools, Modules](PLANNING.md#items-tools-modules)). Full consumable pool design + cursed acquisition path **outstanding** — non-blocking for slice; pick up before / during M9 polish or alongside W6 if appetite.
+**Gates:** M6 ✓ (Grapple unblocked), M7 ✓ (passives chain unblocked), M9 (full pool still owed for full game)
 **Pre-read:** [PLANNING.md § Items, Tools, Modules](PLANNING.md#items-tools-modules), [PLANNING.md § Player / Vessel](PLANNING.md#player--vessel) (stat sheet)
 
 **Output delivered (this session):**
@@ -244,9 +244,16 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 - Resource pickup distinction (`ResourcePickup` ≠ `Consumable` in data model)
 - **Stat-system correction:** Luck and Crit Chance split into separate stats (see § Player/Vessel stat sheet and § Damage System)
 
-**Output outstanding (future W5 session):**
-- Passive roster: ~10 slice / ~50 full game, each tagged
-- M7 synergy chain — 2–3 passives with explicit pairwise synergies
+**Output delivered (passives session):**
+- Slice passive roster: 10 designs at 5 / 3 / 2 (Common / Uncommon / Rare), full tag matrix per item, tier and stack rules locked (PLANNING § Slice passive roster)
+- M7 synergy chain: Refrain → Pirouette → Curtain Call ("Build toward the last hit"), with explicit pairwise interaction table covering isolation / pairwise / full-stack tests for M7's synergy proof
+- M7 item-room scene rule: deterministic synergy demo — all three pedestals offer the chain on the M7 milestone room, normal weights apply to subsequent item rooms
+- New TriggerTag value `on_combo_finisher` — combo-finisher axis is now load-bearing for slice and post-slice synergy search
+- Cross-synergy seeds documented for W6: Poison Coat × Refrain, Poison Coat × Pirouette, Curtain Call's Slow as the post-slice payoff anchor for "on slowed" passives (the locked-out roadmap-example chain re-enters here)
+- Vessel starting passives confirmed out of slice drop tables; pool-portability remains for post-slice
+- W7 handoffs resolved: crit-rate landed (Practiced Eye); crit-multiplier / resistance-piercing / key-drop-rate / Aberrant max-HP recovery deferred post-slice with stated reasons
+
+**Output outstanding (future W5 session, non-blocking for slice):**
 - Full consumable pool design (beyond the slice list already locked)
 - Cursed acquisition path (cursed room and/or bargain room) if cursed items added to slice
 
@@ -287,6 +294,21 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
    - **Crit Chance** is its own stat. `Final crit chance = weapon base + Crit Chance bonus + item/passive modifiers`. Independent of Luck.
    - Edits applied to PLANNING § Player/Vessel stat sheet and § Damage System.
 
+17. **Slice passive roster: 10 designs at 5 / 3 / 2.** Pool tight on purpose — small slice surface = M7's synergy proof tests are reproducible instead of noisy. Vessel-bound starting passives (Adrenaline Rush, Plated, Schoolbag, Console Hack, Shoulder-Charge) stay out of slice drop tables; pool-portability remains for post-slice. Stat-bump axes covered: combo (Refrain, Pirouette, Curtain Call), crit (Practiced Eye), movement (Stim Patch), hazard protection (Gas Mask, Reinforced Soles, Hover Jets), DOT (Poison Coat), utility (Skeleton Key).
+
+18. **M7 chain identity: Combo / Finisher.** "Build toward the last hit." Refrain → Pirouette → Curtain Call. Picked over the roadmap-example Electric chain (would force a new damage-type build into slice) and Poison/Bleed (better as secondary seed; too many fragile dependencies for the *first* synergy proof). Combo state is already owned by W2, so M7 doesn't drag unbuilt systems into the critical path.
+
+19. **Curtain Call spec:** final combo hit deals **+50% damage** and applies **Slow** for 1.5 sec. Slow uses the existing Sedative Dart profile (W3): −35% move, −20% dodge distance, no attack-rate effect, refreshes, no magnitude stack. Preferred over "always-crit on finisher" because it adds a *status* hook to the slice (W6 surface for "on slowed" payoffs) instead of double-stacking the crit axis already covered by Practiced Eye.
+
+20. **Stack caps tuned to the slice pool:**
+   - **Refrain ×2** (cap +2 combo steps) — already locked W2.
+   - **Stim Patch ×2** (cap +20% move speed) — held to ×2 because +30% steps on Synthetic vessel identity and risks breaking room/enemy spacing in Sector 1.
+   - **Practiced Eye ×3** (cap +15% crit chance) — held to ×3 because in a 10-item slice, a Common crit stack reaching +20% would dominate Common rolls. Crit headroom for future Crit Chance gear remains untouched.
+
+21. **`on_combo_finisher` added to TriggerTag enum.** The combo-finisher axis is now load-bearing for slice synergy (Pirouette and Curtain Call both fire on the finisher specifically, not on every hit). Refrain still uses `always` because it modifies combo length, not finisher behavior.
+
+22. **M7 item room is a deterministic synergy demo.** All three pedestals offer the chain (Refrain / Pirouette / Curtain Call, one per pedestal). Player picks one, finds the other two later through normal pool rolls. Subsequent item rooms use real W5 weights (25 / 50 / 25 / 0). The M7 proof is a *demonstration*, not a *discovery* moment — forcing the demo is what makes the test reproducible.
+
 **Items implicitly created by W5 (need IDs in `Assets/Data/...` when authoring pipeline lands):**
 
 - `Magnetic Grapple` (active tool — locked spec)
@@ -295,13 +317,15 @@ W1 → W2 → W7 → W3 → W5 (tools) → W6 → W4 → W9 → W8 → W10 (with
 - `Grappable` prop class (reserved for post-slice yankable switches/crates — register in data model now to avoid schema churn)
 - `ResourcePickup` entity class (system-level; distinct from `Consumable`)
 - `Cursed` rarity tier enum value (ships now even with zero cursed items in slice)
-- All existing implicit items from W1/W2/W3/W7 carry forward into the W5 pool pending tier assignment in the future passives session
+- 10 slice passive items: `Refrain`, `Practiced Eye`, `Gas Mask`, `Reinforced Soles`, `Stim Patch`, `Pirouette`, `Poison Coat`, `Hover Jets`, `Curtain Call`, `Skeleton Key` (full spec in PLANNING § Slice passive roster)
+- `on_combo_finisher` TriggerTag value (enum-level)
+- All existing implicit items from W1/W2/W3/W7 not in the slice roster above remain pool-portable for post-slice content
 
 **Handoffs to other workshops:**
 
 - **W3 (Enemy Roster):** add `MassClass` field to enemy `.tres` definitions. Sector 1 mapping locked above; other sectors backfill as their workshops land.
 - **W4 (Bosses & Mid-Bosses):** bosses default to `MassClass: Boss`. Phases / attack patterns can briefly expose `MassClass: Heavy` (player gets pulled into boss) or expose an `AnchorPoint` child object (player can grapple a boss-affixed point) — gives boss choreography a clean handle without bespoke code per fight.
-- **W6 (Synergies):** the 5-axis tag system is the search surface. **TriggerTag** is the load-bearing axis — most synergies are "when X fires, do Y." Concrete Grapple-driven synergy seeds: damage-on-grapple, stagger-extender, marked-on-pull, generic tool cooldown reduction, "Grapple Cancel" passive. Aberrant + cursed items is a natural synergy axis.
+- **W6 (Synergies):** the 5-axis tag system is the search surface. **TriggerTag** is the load-bearing axis — most synergies are "when X fires, do Y." Concrete Grapple-driven synergy seeds: damage-on-grapple, stagger-extender, marked-on-pull, generic tool cooldown reduction, "Grapple Cancel" passive. Aberrant + cursed items is a natural synergy axis. **Combo-finisher seeds (M7 chain + post-slice extension):** `on_combo_finisher` is the search hook for any post-slice "extra payoff on finisher" passive (status delivery, AOE, refund). Curtain Call's Slow is the post-slice payoff anchor for "on slowed" passives — the locked-out roadmap-example chain (slow → bonus damage → shield-on-kill) re-enters here as a proper post-slice synergy build. Poison Coat × Refrain (more hits → more DoT applications) and Poison Coat × Pirouette (DoT spreads in 360°) are already-existing slice surface for cross-source DOT design.
 - **W8 (Sector 1 deep dive):** Sector 1 templates own anchor placement (template-owned, not generator-owned). 2–3 Medical Wing templates should include `GrappleAnchor` slots; M6 ships exactly one for the proof-of-concept.
 - **W9 (Difficulty Tier Mechanics):** higher tiers may shift per-source roll weights (e.g. boost cursed weight in secret rooms, increase rare drop chance from item rooms). All weights ship configurable to support tier modifiers.
 - **W10 (Narrative Architecture):** owns naming for the rare max-HP recovery items (W1 handoff carries forward), and any cursed items with narrative weight.

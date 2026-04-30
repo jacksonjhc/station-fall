@@ -16,8 +16,8 @@ See [PLANNING.md](PLANNING.md) for the design context behind these.
 | W2 | M1, M3.5 | Combat Feel & Weapon Patterns |
 | W3 | M3, M9 | Enemy Roster & Archetype Detail |
 | W4 | M8, M9 | Bosses & Mid-Bosses |
-| W5 | M6, M7, M9 | Items: Passives, Tools, Consumables |
-| W6 | M7 | Synergies |
+| W5 | M6 ✓, M7 ✓, M9 | Items: Passives, Tools, Consumables |
+| W6 | M7 (catalog only — M7 chain itself is locked by W5) | Synergies |
 | W7 | M2, M5 | Dungeon Elements & Mechanics |
 | W8 | M9 | Sector Themes (Sector 1 deep dive) |
 | W9 | M8 | Difficulty Tier Mechanics |
@@ -191,20 +191,27 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 **Goal:** prove the synergy pipeline works. One passive in isolation proves nothing.
 
-**Workshop gates:** W5 (Passives section), W6 (Synergies) — chain of 2–3 specced.
+**Workshop gates:** W5 ✓ (Passives roster + M7 chain promoted), W6 (full synergy catalog still owed; M7 chain itself does not require W6 to ship).
+
+**M7 chain (locked W5):** *"Build toward the last hit."* Refrain → Pirouette → Curtain Call. Full pairwise table in [PLANNING.md § M7 synergy chain](PLANNING.md#m7-synergy-chain-w5--w6-handoff).
 
 **Tasks:**
-- `Core/Items/ItemDefinition.cs` and `Core/Items/ItemEffect.cs` with synergy tagging system
-- 2–3 passives chosen by W6 because they should compose. Example chain:
-  1. "Static Discharge" — melee hits apply 1s slow
-  2. "Voltage Surge" — slowed enemies take +25% damage
-  3. "Capacitor" — kill on slowed enemy grants brief shield
-- Tests for each passive in isolation, plus tests for each pairwise interaction, plus a test for all three stacked
-- Item room scene with three pickup pedestals (only one can be taken)
-- `RunState` tracks active passives; `DamageCalculator` reads modifiers from active passives
-- Visible effect on enemies (placeholder shader/tint is fine)
+- `Core/Items/ItemDefinition.cs` and `Core/Items/ItemEffect.cs` with the 5-axis tagging system from W5 (StatusTag / DeliveryTag / TriggerTag / RoleTag / EffectScope). Add `on_combo_finisher` to the TriggerTag enum.
+- Implement the three M7-chain passives:
+  1. **Refrain** — +1 combo step (stack cap ×2 → +2 steps total)
+  2. **Pirouette** — final combo hit becomes 360° hitbox
+  3. **Curtain Call** — final combo hit deals +50% damage and applies 1.5s Slow (Sedative Dart profile: −35% move, −20% dodge distance)
+- Tests:
+  - **Isolation** — each passive in isolation produces its own measurable change.
+  - **Pairwise** — each of the three pairs (R+P / R+C / P+C) shows the documented composition. Pirouette+Curtain Call is the load-bearing test (every ringed enemy gets +50%/Slow).
+  - **Full stack** — all three together produce the build-identity outcome on a swarm.
+- **M7 item room is deterministic** — all three pedestals offer the M7 chain (one chain link per pedestal), player picks one. Subsequent item rooms use real W5 roll weights.
+- `RunState` tracks active passives; `DamageCalculator` reads modifiers from active passives.
+- Visible effect on enemies (placeholder shader/tint is fine; Slow already uses Sedative Dart's existing visual).
 
 **Exit criterion:** entering an item room and choosing one of three passives; subsequent fights show the chosen effect; if the run already has the prior link in the chain, the synergy is observably stronger than the sum of parts.
+
+**Slice pool note:** the other 7 slice passives (Practiced Eye, Gas Mask, Reinforced Soles, Stim Patch, Poison Coat, Hover Jets, Skeleton Key) are not gating M7 — they can ship with M7 or trickle into M9 as content. Locked spec in [PLANNING.md § Slice passive roster](PLANNING.md#slice-passive-roster-w5--gates-m7).
 
 ---
 
@@ -272,15 +279,15 @@ A milestone cannot ship until its gating workshops are at least to "decisions do
 
 **M6 ✅** — Magnetic Grapple end-to-end. Core layer: `MassClass` enum on `EnemyDefinition`, `ToolDefinition` + `MagneticGrappleConfig`/`State`, pure `MagneticGrappleRules` (per-MassClass outcome resolution, range, ~10° cone-snap, cooldown gating, `max(current, grapple)` stagger combine). Godot layer: `MagneticGrappleTool` orchestrator (Idle → Windup → Projectile → Pulling → Cooldown), `GrappleProjectile` (520 px/s with wall raycast + range expiry), `GrappleAnchor` static prop on a new `GrappleTarget` collision layer, `ToolPickupNode` (persistent via `IPersistentEntity` / `ToolPickupState`), `ToolResource` + `magnetic_grapple.tres`. Player gains a tool slot + `BeingPulled` state; `EnemyController` gains `BeginExternalPull` driving the Light pull-target case. Generator integration: new `RoomType.ToolPedestal` claims one room per layout (off-pool, reserved before Item/Vendor) emitting the `ToolPedestal_Generic` template, with invariant-sweep coverage across counts 0/1/2 × 200 seeds asserting keyless reachability. Controller-first input: RB fire + right-stick aim with movement-direction fallback (last-input device tracked at the event layer so KB+M still uses mouse aim). Feel pass: 6f windup tint on the player visual, cyan hit-burst on attach (`GrappleHit`), grey puff on miss (`GrappleMiss`), top-right HUD readiness/cooldown widget, dev-side `GD.Print` of every projectile resolution. 422/422 Core tests green at M6 close.
 
-### Up next — workshop gates block all remaining implementation milestones
+### Up next
 
-| Milestone | Gating workshops |
-|-----------|------------------|
-| **M7** — Item room + synergies | W5 (Passives) + W6 (Synergies) |
-| **M8** — Mini-boss + meta currency | W4 (Bosses) + W9 (Difficulty Tier) |
-| **M9** — Sector 1 vertical slice | W3 ✓, W4, W5, W6, W8, W10 |
+| Milestone | Status |
+|-----------|--------|
+| **M7** — Item room + synergies | **Unblocked.** W5 passives + M7 chain promoted. Implementation can start. |
+| **M8** — Mini-boss + meta currency | Blocked on W4 (Bosses) + W9 (Difficulty Tier) |
+| **M9** — Sector 1 vertical slice | Blocked on W4, W6, W8, W10 (W3 ✓, W5 ✓ for slice scope) |
 
-**Highest-leverage next workshop:** W5 passives + W6 synergies, in that order — together they unblock M7 (the synergy pipeline proof). The W5 tools section that gated M6 is already promoted; only the passives and consumables sub-tracks remain pending.
+**M7 is the next implementation milestone.** Chain locked: Refrain → Pirouette → Curtain Call. Tagging system + 5-axis search surface specced. M7 item-room scene is a deterministic synergy demo (all three pedestals offer the chain). W6 (full synergy catalog) does not gate M7 itself — it gates the *full* slice pool's synergy design and post-slice extension chains. Recommended workshop order from here: **W4 (Bosses) → W6 (Synergies catalog) → W9 (Difficulty Tier) → W8 (Sector 1 deep dive) → W10 (Narrative)**, with M7 implementation running in parallel to W6.
 
 ### M6 deferred items (carried forward)
 
@@ -294,4 +301,4 @@ Captured here so they don't get lost between milestones — none gate M7+ but ea
 
 ### Workshops still pending
 
-W4 (Bosses), W5 (Items), W6 (Synergies), W8 (Sector 1 deep dive), W9 (Difficulty Tier), W10 (Narrative). See the gate table at the top of this file for which milestone unlocks each.
+W4 (Bosses), W6 (Synergies — M7 chain locked, full catalog still owed), W8 (Sector 1 deep dive), W9 (Difficulty Tier), W10 (Narrative). W5 still owes full consumable pool design + cursed acquisition path, both non-blocking for slice. See the gate table at the top of this file for which milestone unlocks each.

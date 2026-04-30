@@ -916,7 +916,7 @@ Tags are **authoring / search / UI metadata, NOT the source of gameplay behavior
 |------|--------|
 | **StatusTag** | slowed · stunned · bleeding · poisoned · burning · frozen · marked · shielded · armored · contaminated |
 | **DeliveryTag** | melee · projectile · beam · aoe · deployable · hazard · tool · dodge · combo · self_buff · room_effect |
-| **TriggerTag** | always · on_hit · on_damaging_hit · on_crit · on_kill · on_room_entry · on_room_clear · on_dodge · on_perfect_dodge · on_damage_taken · on_low_hp · on_tool_use · on_pickup |
+| **TriggerTag** | always · on_hit · on_damaging_hit · on_crit · on_combo_finisher · on_kill · on_room_entry · on_room_clear · on_dodge · on_perfect_dodge · on_damage_taken · on_low_hp · on_tool_use · on_pickup |
 | **RoleTag** | offense · defense · movement · utility · economy · perception · exploration · sustain |
 | **EffectScope** | player · enemy · weapon · projectile · tool · room · door · hazard · pickup · vendor · run_state · meta_state |
 
@@ -1152,12 +1152,85 @@ Slice's missing 5% (cursed) lifts Rare from 15% → 20% — slice runs feel slig
 
 No cursed consumables — the cursed tradeoff doesn't bite for short-lived single-use items.
 
+#### Slice passive roster (W5 — gates M7)
+
+**Identity for the slice pool:** *"Build toward the last hit."* The M7 synergy proof rides the combo-finisher axis (Refrain → Pirouette → Curtain Call) because combo state is already owned by W2 and the chain composes without dragging unbuilt systems into the critical path. Poison/Bleed remains the **secondary** synergy seed (W3, W6 will own).
+
+**Pool size:** 10 passive *designs* (stackable items count once even when duplicates can appear in-run). Tier mix matches the slice composition target (50% / 30% / 20% / 0%).
+
+**Vessel-bound starting passives** (Adrenaline Rush, Plated, Schoolbag, Console Hack, Shoulder-Charge) are **not** in slice drop tables. They remain pool-portable per W1 — turning them on for drops is post-slice. This keeps the slice pool small enough to actually test every pair that matters.
+
+**Roster:**
+
+| # | Name | Tier | Effect | Stack |
+|---|------|------|--------|-------|
+| 1 | **Refrain** | Common | +1 combo step. | ×2 (cap +2 steps) |
+| 2 | **Practiced Eye** | Common | +5% Crit Chance. | ×3 (cap +15%) |
+| 3 | **Gas Mask** | Common | Immunity to gas-vent damage. | No |
+| 4 | **Reinforced Soles** | Common | Immunity to electric-floor and fire-jet floor damage. | No |
+| 5 | **Stim Patch** | Common | +10% movement speed. | ×2 (cap +20%) |
+| 6 | **Pirouette** | Uncommon | The final hit of the melee combo becomes a 360° hitbox around the player. | No |
+| 7 | **Poison Coat** | Uncommon | Damaging melee hits apply Poison: 1 damage / sec for 4 sec, refreshes, no magnitude stack (W3 DOT rule). | No |
+| 8 | **Hover Jets** | Uncommon | Cross gaps. Ignore pit / fragile-floor fall damage. | No |
+| 9 | **Curtain Call** | Rare | The final hit of the melee combo deals **+50% damage** and applies **Slow** for 1.5 sec (Sedative Dart profile: −35% move, −20% dodge distance, no attack-rate effect, refreshes, no magnitude stack). | No |
+| 10 | **Skeleton Key** | Rare | Run-permanent generic-lock bypass. | No |
+
+**Stack semantics:** stackable Commons accept duplicate pickups in the same run up to the cap. After cap, the item is treated as exhausted and its weight transfers per the tier-disabled roll-up rule until pool exhaustion re-enables (W5 rules).
+
+**Stim Patch's +20% cap is intentional.** Synthetic vessel identity owns the high-mobility lane; +30% from a passive stack risked stepping on that lane and breaking room/enemy spacing in Sector 1. Held to ×2.
+
+**Practiced Eye's +15% cap is intentional.** Slice pool is 10 items, so a Common crit stack reaching +20% would dominate Common rolls. Held to ×3. Crit headroom for future Crit Chance gear (passives can push past Luck's +25% cap per W7) remains untouched.
+
+**W7 handoffs deferred post-slice:** crit-multiplier passive (Practiced Eye covers crit ergonomically), resistance-piercing gear (Sector 1's resistance ceiling is 1; Bio-Seal Orderly's frontal −1 is the only target), key-drop-rate passive (slice has no progression need). Aberrant max-HP recovery items deferred — Aberrant doesn't ship in slice.
+
+#### M7 synergy chain (W5 + W6 handoff)
+
+The M7 milestone's "synergy pipeline proof" runs the combo-finisher chain. M7's item-room scene is a **deterministic synergy demo** — all three pedestals offer the chain (one chain link per pedestal, player picks one). After M7's first item room, normal item rooms use real W5 roll weights.
+
+**Pairwise interactions for M7 tests:**
+
+| Combination | Observable effect |
+|---|---|
+| Refrain alone | Combo length 3 → 4 (or 5 stacked). Same finisher hitbox. DPS up. |
+| Pirouette alone | 3-step combo with 360° final hit. Crowd value, no payoff scaling. |
+| Curtain Call alone | 3-step combo. Final hit +50% damage, applies 1.5s Slow. Single-target payoff. |
+| Refrain + Pirouette | Longer combo, 360° finisher. Linear DPS gain in crowds. |
+| Refrain + Curtain Call | Longer commitment, then +50% / Slow finisher. Single-target build. |
+| **Pirouette + Curtain Call** | 360° finisher; **every** ringed enemy gets +50% damage and 1.5s Slow. Crowd wipe + crowd CC. |
+| **All three** | Long-windup payoff build. 5-hit combo, 360° finisher, +50% / Slow on every ringed enemy. Sector 1 mite pack is the showcase fight. |
+
+**Test obligations for M7 (per ROADMAP M7):** isolation tests for each passive, pairwise tests for each pair, full-stack test for all three.
+
+**Cross-synergy seeds for W6 (already-existing slice surface):**
+
+- **Poison Coat × Refrain** — more combo hits = more DOT-refresh applications.
+- **Poison Coat × Pirouette** — DOT spreads to ringed enemies.
+- **Curtain Call × Poison Coat** — finisher applies Slow + Poison ticks; different debuffs stack per W7 DOT rule. Concrete first-pair demonstration that *different* statuses compose.
+- **Curtain Call's Slow × future "on slowed" passives** — primary post-slice extension axis. The locked-out roadmap-example chain (slow → bonus damage → shield-on-kill) re-enters here as a proper post-slice synergy build.
+- **Practiced Eye × combo body** — Curtain Call only buffs the finisher; combo-body crits come from Practiced Eye and the weapon's base rate. Two independent crit sources don't double-dip.
+
+**W6 search load-bearing:** the `on_combo_finisher` TriggerTag is now the primary search hook for combo-payoff passives. Curtain Call carries `on_combo_finisher`; Pirouette carries `on_combo_finisher`; Refrain carries `always` (it modifies combo length, not finisher behavior).
+
+**Tag matrix (slice passives):**
+
+| Item | Status | Delivery | Trigger | Role | Scope |
+|---|---|---|---|---|---|
+| Refrain | — | melee, combo | always | offense | weapon |
+| Practiced Eye | — | — | always | offense | player, weapon |
+| Gas Mask | — | — | always | defense | player |
+| Reinforced Soles | — | — | always | defense | player |
+| Stim Patch | — | — | always | movement | player |
+| Pirouette | — | melee, combo, aoe | on_combo_finisher | offense | weapon |
+| Poison Coat | poisoned | melee | on_damaging_hit | offense | enemy |
+| Hover Jets | — | — | always | movement, exploration | player, hazard |
+| Curtain Call | slowed | melee, combo | on_combo_finisher | offense | enemy, weapon |
+| Skeleton Key | — | — | always | utility, exploration | door, run_state |
+
 #### Open W5 work (future sessions)
 
-- **Passive roster** — full design pool (~10 slice / ~50 full game). Tags + tier per item.
-- **M7 synergy chain** — 2–3 passives with explicit pairwise synergies. Coordinated with W6.
 - **Full consumable pool design** — beyond the slice list above; rule details (e.g. pickup-up animation, can-throw-during-attack, etc.).
 - **Cursed acquisition path** — cursed room and/or bargain room mechanics, if/when cursed items are added to slice. Currently deferred.
+- **Post-slice passive expansion** — vessel starting passives entering drop tables, max-HP recovery items (Aberrant counter, names → W10), crit-multiplier, resistance-piercing, key-drop-rate, "Grapple Cancel" (W5 hooks), "on slowed" / "on bleeding" payoff passives (synergy depth).
 
 ### Currency
 
